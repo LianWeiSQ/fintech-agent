@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from ..models import NewsWindow, RawNewsItem
-from ..utils import iso_day, stable_id
+from ..utils import parse_iso_datetime, stable_id
 from .base import SourceAdapter
 
 
@@ -13,10 +13,17 @@ class FileSourceAdapter(SourceAdapter):
         source_path = Path(self.definition.endpoint)
         payload = json.loads(source_path.read_text(encoding="utf-8"))
         items = []
-        valid_days = {iso_day(window.start), iso_day(window.end)}
+        window_start = parse_iso_datetime(window.start)
+        window_end = parse_iso_datetime(window.end)
         for item in payload:
             published_at = item["published_at"]
-            if iso_day(published_at) not in valid_days and published_at < window.start:
+            published_dt = parse_iso_datetime(published_at)
+            if (
+                published_dt is not None
+                and window_start is not None
+                and window_end is not None
+                and not (window_start <= published_dt <= window_end)
+            ):
                 continue
             items.append(
                 RawNewsItem(
@@ -38,4 +45,3 @@ class FileSourceAdapter(SourceAdapter):
                 )
             )
         return items
-

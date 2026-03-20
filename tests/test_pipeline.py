@@ -12,7 +12,9 @@ TMP_ROOT.mkdir(exist_ok=True)
 sys.path.insert(0, str(ROOT / "src"))
 
 from news_employee.config import AppConfig, AuditSettings, ModelRoute, SourceDefinition
+from news_employee.evaluation import ForecastEvaluator, load_price_observations
 from news_employee.pipeline import NewsPipeline
+from news_employee.storage import SQLiteStorage
 
 
 class PipelineTests(unittest.TestCase):
@@ -72,6 +74,24 @@ class PipelineTests(unittest.TestCase):
             joined = "\n".join(result["degraded_reasons"])
             self.assertIn("source_failed:failing_mock", joined)
             self.assertTrue(Path(result["markdown_path"]).exists())
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
+    def test_evaluation_reads_audited_assessments_without_duplicates(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            config = self._build_config(runtime_dir)
+            result = NewsPipeline(config).run("2026-03-20T07:00:00+08:00")
+            storage = SQLiteStorage(config.database_path)
+            assessments = storage.load_assessments(result["run_id"])
+            self.assertEqual(len({item.id for item in assessments}), len(assessments))
+
+            observations = load_price_observations(ROOT / "examples" / "sample_price_observations.csv")
+            outcomes = ForecastEvaluator().evaluate(result["run_id"], assessments, observations)
+            storage.record_outcomes(result["run_id"], outcomes)
+
+            for outcome in outcomes:
+                self.assertIn(outcome.evaluation_window, {"D0", "D1", "D5"})
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 

@@ -9,6 +9,10 @@ build/
 *.pyo
 *.pyd
 .env
-
+.env.*
+*.env
 .tmp_tests/
 tmp_tests_runtime/
+pytest-cache-files-*/
+config/local*.toml
+config/*.secret.toml

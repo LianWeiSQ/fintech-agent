@@ -16,7 +16,7 @@ keeping live-source and model-routing interfaces pluggable.
 
 - 9 explicit agents matching the product spec
 - LangGraph-ready orchestration with a sequential fallback for local development
-- LiteLLM wrapper with rule-based fallbacks when no model key is configured
+- LiteLLM wrapper with rule-based fallbacks when no model route is configured
 - SQLite-backed audit trail for raw news, events, assessments, reports, and outcomes
 - Markdown report generation and optional PDF rendering through ReportLab
 - Historical replay and evaluation utilities for D0 / D1 / D5 review loops
@@ -32,14 +32,18 @@ news-employee run-daily --config config/example.toml
 ```
 
 The default config uses `examples/sample_news.json` so the pipeline can be exercised
-without network access or API keys.
+without network access or provider credentials.
 
 ## Live data and models
 
 - Add RSS or file sources in `config/example.toml`.
 - Set `NEWS_EMPLOYEE_CONFIG` to point LangGraph CLI at a custom config.
-- Configure a LiteLLM-compatible model in `[model_route]` and set the matching API key
-  in your environment if you want LLM translation or summarization.
+- Keep provider credentials only in ignored local files or shell environment variables.
+- If you need model routing, put it in a local override such as `config/local.toml`,
+  which is ignored by Git.
+- The built-in trust policy recognizes these V1 trusted sources:
+  `Reuters`, `Bloomberg`, `???`, `?????`, `??????`,
+  `?????`, `?????`, `OPEC`, `Fed`, `CME`.
 
 ## LangGraph local app
 
@@ -51,9 +55,8 @@ The graph entrypoint is declared in `langgraph.json`.
 
 ## Project layout
 
-- `config/example.toml`: runnable configuration
+- `config/example.toml`: committed, credential-free example configuration
 - `examples/`: sample news and evaluation fixtures
 - `spec.md`: product and implementation specification
 - `src/news_employee/`: pipeline package
 - `tests/`: unit tests focused on normalization, audit gates, and end-to-end output
-

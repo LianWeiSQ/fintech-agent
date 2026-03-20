@@ -4,16 +4,19 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .source_catalog import infer_source_tier
+
 
 @dataclass(slots=True)
 class SourceDefinition:
     name: str
     kind: str
     endpoint: str
-    language: str
-    tier: str
+    language: str = "mixed"
+    tier: str = "unknown"
     enabled: bool = True
     tags: list[str] = field(default_factory=list)
+    metadata: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -24,10 +27,12 @@ class AuditSettings:
 
 @dataclass(slots=True)
 class ModelRoute:
-    provider: str = "openai"
+    provider: str = ""
     model: str = ""
     temperature: float = 0.1
     max_output_tokens: int = 900
+    base_url: str = ""
+    api_key_env: str = ""
 
 
 @dataclass(slots=True)
@@ -48,7 +53,14 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     config_path = Path(path)
     payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    sources = [SourceDefinition(**item) for item in payload.get("sources", [])]
+    sources = []
+    for item in payload.get("sources", []):
+        source_payload = dict(item)
+        source_payload["tier"] = infer_source_tier(
+            source_payload.get("name", ""),
+            source_payload.get("tier", ""),
+        )
+        sources.append(SourceDefinition(**source_payload))
     audit = AuditSettings(**payload.get("audit", {}))
     model_route = ModelRoute(**payload.get("model_route", {}))
     return AppConfig(
@@ -61,4 +73,3 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         audit=audit,
         model_route=model_route,
     )
-

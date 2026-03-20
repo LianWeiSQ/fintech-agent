@@ -44,10 +44,18 @@ def iso_day(iso_timestamp: str) -> str:
     return iso_timestamp[:10] if iso_timestamp else ""
 
 
+def parse_iso_datetime(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 def within_days(reference_iso: str, days: int) -> list[str]:
     anchor = datetime.fromisoformat(reference_iso.replace("Z", "+00:00"))
     return [
         (anchor + timedelta(days=offset)).date().isoformat()
         for offset in range(days + 1)
     ]
-

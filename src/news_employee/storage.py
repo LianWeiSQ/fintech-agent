@@ -143,7 +143,7 @@ class SQLiteStorage:
         with self.connect() as conn:
             rows = conn.execute(
                 """
-                SELECT payload_json
+                SELECT stage, payload_json
                 FROM stage_payloads
                 WHERE run_id = ? AND entity_type = 'market_impact_assessment'
                 ORDER BY id ASC
@@ -152,9 +152,21 @@ class SQLiteStorage:
             ).fetchall()
         import json
 
-        return [MarketImpactAssessment.from_dict(json.loads(row[0])) for row in rows]
+        if not rows:
+            return []
+
+        preferred_stage = 'audit_evidence'
+        stages = [row[0] for row in rows]
+        selected_stage = preferred_stage if preferred_stage in stages else stages[-1]
+        return [
+            MarketImpactAssessment.from_dict(json.loads(payload_json))
+            for stage, payload_json in rows
+            if stage == selected_stage
+        ]
 
     def record_outcomes(self, run_id: int, outcomes: list[ForecastOutcome]) -> None:
+        if not outcomes:
+            return
         created_at = utc_now_iso()
         rows = [
             (
@@ -176,4 +188,3 @@ class SQLiteStorage:
                 """,
                 rows,
             )
-
