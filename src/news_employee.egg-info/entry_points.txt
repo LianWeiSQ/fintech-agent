@@ -1,0 +1,2 @@
+[console_scripts]
+news-employee = news_employee.cli:main

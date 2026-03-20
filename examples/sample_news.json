@@ -1,0 +1,82 @@
+[
+  {
+    "id": "fomc-en-1",
+    "language": "en",
+    "title": "Fed officials signal rates may stay restrictive for longer",
+    "summary": "The Federal Reserve kept a cautious tone after stronger inflation data, reinforcing higher-for-longer rate expectations.",
+    "url": "https://example.com/fomc-en-1",
+    "published_at": "2026-03-19T22:30:00Z",
+    "tags": [
+      "fomc",
+      "rates",
+      "macro"
+    ],
+    "metadata": {
+      "source": "sample"
+    }
+  },
+  {
+    "id": "fomc-zh-1",
+    "language": "zh",
+    "title": "美联储释放偏鹰信号 利率或将在更长时间维持高位",
+    "summary": "在美国通胀数据偏强后，联储官员讲话继续偏鹰，市场下调年内降息预期。",
+    "url": "https://example.com/fomc-zh-1",
+    "published_at": "2026-03-19T22:45:00Z",
+    "tags": [
+      "fomc",
+      "rates",
+      "macro"
+    ],
+    "metadata": {
+      "source": "sample"
+    }
+  },
+  {
+    "id": "china-policy-1",
+    "language": "zh",
+    "title": "中国推出新一轮稳增长举措 支持地产与消费修复",
+    "summary": "多部门强调加大逆周期调节力度，稳住地产和消费，对顺周期板块形成支撑。",
+    "url": "https://example.com/china-policy-1",
+    "published_at": "2026-03-19T23:20:00Z",
+    "tags": [
+      "china",
+      "policy",
+      "stimulus"
+    ],
+    "metadata": {
+      "source": "sample"
+    }
+  },
+  {
+    "id": "opec-1",
+    "language": "en",
+    "title": "OPEC+ weighs deeper supply cuts as inventories tighten",
+    "summary": "Delegates said OPEC+ is considering tighter output discipline, adding to support for crude prices.",
+    "url": "https://example.com/opec-1",
+    "published_at": "2026-03-19T20:10:00Z",
+    "tags": [
+      "opec",
+      "oil",
+      "energy"
+    ],
+    "metadata": {
+      "source": "sample"
+    }
+  },
+  {
+    "id": "geopolitics-1",
+    "language": "zh",
+    "title": "中东局势再度升级 避险情绪推升黄金与原油风险溢价",
+    "summary": "市场担忧航道运输与能源供给安全，黄金和原油获得避险买盘。",
+    "url": "https://example.com/geopolitics-1",
+    "published_at": "2026-03-19T21:05:00Z",
+    "tags": [
+      "geopolitics",
+      "gold",
+      "oil"
+    ],
+    "metadata": {
+      "source": "sample"
+    }
+  }
+]

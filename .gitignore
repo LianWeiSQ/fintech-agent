@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.coverage
+artifacts/
+dist/
+build/
+*.pyc
+*.pyo
+*.pyd
+.env
+
+.tmp_tests/
+tmp_tests_runtime/

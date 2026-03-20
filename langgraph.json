@@ -1,0 +1,8 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "daily_brief": "./src/news_employee/langgraph_app.py:graph"
+  },
+  "env": "./.env"
+}
+

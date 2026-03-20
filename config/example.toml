@@ -1,0 +1,35 @@
+timezone = "Asia/Shanghai"
+report_time = "07:00"
+report_language = "zh-CN"
+database_path = "artifacts/news_employee.db"
+report_dir = "artifacts/reports"
+
+[audit]
+min_verified_score = 0.65
+min_publish_confidence = 0.55
+
+[model_route]
+provider = "openai"
+model = ""
+temperature = 0.1
+max_output_tokens = 900
+
+[[sources]]
+name = "bootstrap_sample"
+kind = "file"
+endpoint = "examples/sample_news.json"
+language = "mixed"
+tier = "tier1_media"
+enabled = true
+tags = ["bootstrap", "macro"]
+
+# Add validated RSS / API / premium connectors by extending [[sources]].
+# Example:
+# [[sources]]
+# name = "global_macro_rss"
+# kind = "rss"
+# endpoint = "https://example.com/rss.xml"
+# language = "en"
+# tier = "tier1_media"
+# enabled = true
+# tags = ["macro", "global"]

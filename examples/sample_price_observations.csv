@@ -1,0 +1,6 @@
+asset,evaluation_window,observed_direction,observed_move,notes
+macro/usd,D0,bullish,0.4,美元指数走强
+macro/us_rates,D0,bullish,0.3,美债收益率上行
+precious_metals/gold,D0,bearish,-0.5,黄金受压
+cn_equities/major_indices,D1,bullish,0.8,政策支撑A股反弹
+energy/crude_oil,D0,bullish,1.2,供给扰动推升油价
