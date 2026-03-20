@@ -1,6 +1,7 @@
 {
   "dependencies": ["."],
   "graphs": {
+    "research_run": "./src/fitech_agent/langgraph_app.py:graph",
     "daily_brief": "./src/fitech_agent/langgraph_app.py:graph"
   },
   "env": "./.env"

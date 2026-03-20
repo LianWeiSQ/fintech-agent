@@ -37,15 +37,21 @@ class ModelRoute:
 
 
 @dataclass(slots=True)
+class RunDefaults:
+    mode: str = "full_report"
+    lookback_hours: int = 18
+
+
+@dataclass(slots=True)
 class AppConfig:
     timezone: str = "Asia/Shanghai"
-    report_time: str = "07:00"
     report_language: str = "zh-CN"
     database_path: str = "artifacts/fitech_agent.db"
     report_dir: str = "artifacts/reports"
     sources: list[SourceDefinition] = field(default_factory=list)
     audit: AuditSettings = field(default_factory=AuditSettings)
     model_route: ModelRoute = field(default_factory=ModelRoute)
+    run_defaults: RunDefaults = field(default_factory=RunDefaults)
 
 
 def load_dotenv(path: str | Path = ".env") -> Path | None:
@@ -93,13 +99,14 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         sources.append(SourceDefinition(**source_payload))
     audit = AuditSettings(**payload.get("audit", {}))
     model_route = ModelRoute(**payload.get("model_route", {}))
+    run_defaults = RunDefaults(**payload.get("run_defaults", {}))
     return AppConfig(
         timezone=payload.get("timezone", "Asia/Shanghai"),
-        report_time=payload.get("report_time", "07:00"),
         report_language=payload.get("report_language", "zh-CN"),
         database_path=payload.get("database_path", "artifacts/fitech_agent.db"),
         report_dir=payload.get("report_dir", "artifacts/reports"),
         sources=sources,
         audit=audit,
         model_route=model_route,
+        run_defaults=run_defaults,
     )

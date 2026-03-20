@@ -4,11 +4,27 @@ import sqlite3
 from pathlib import Path
 from typing import Iterable
 
-from .models import DailyMarketBrief, ForecastOutcome, MarketImpactAssessment
+from .models import ForecastOutcome, MarketImpactAssessment, ResearchBrief
 from .utils import ensure_directory, to_json, utc_now_iso
 
 
 class SQLiteStorage:
+    REQUIRED_RUN_COLUMNS = {
+        "id",
+        "triggered_at",
+        "mode",
+        "window_start",
+        "window_end",
+        "scopes_json",
+        "sources_json",
+        "status",
+        "started_at",
+        "finished_at",
+        "degraded",
+        "degraded_reasons",
+        "config_json",
+    }
+
     def __init__(self, database_path: str) -> None:
         self.database_path = Path(database_path)
         ensure_directory(self.database_path.parent)
@@ -22,7 +38,12 @@ class SQLiteStorage:
                 """
                 CREATE TABLE IF NOT EXISTS runs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    scheduled_for TEXT NOT NULL,
+                    triggered_at TEXT NOT NULL,
+                    mode TEXT NOT NULL,
+                    window_start TEXT NOT NULL,
+                    window_end TEXT NOT NULL,
+                    scopes_json TEXT NOT NULL,
+                    sources_json TEXT NOT NULL,
                     status TEXT NOT NULL,
                     started_at TEXT NOT NULL,
                     finished_at TEXT,
@@ -69,21 +90,68 @@ class SQLiteStorage:
                 )
                 """
             )
+            self._validate_runs_schema(conn)
 
-    def create_run(self, scheduled_for: str, config_json: str) -> int:
+    def _validate_runs_schema(self, conn: sqlite3.Connection) -> None:
+        columns = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(runs)").fetchall()
+        }
+        missing = self.REQUIRED_RUN_COLUMNS - columns
+        if missing:
+            raise RuntimeError(
+                "Existing SQLite schema is incompatible with the manual-run engine. "
+                "Delete the database file and re-run init-db."
+            )
+
+    def create_run(
+        self,
+        *,
+        triggered_at: str,
+        mode: str,
+        window_start: str,
+        window_end: str,
+        scopes: list[str],
+        sources: list[str],
+        config_json: str,
+    ) -> int:
         started_at = utc_now_iso()
         with self.connect() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO runs (scheduled_for, status, started_at, config_json)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO runs (
+                    triggered_at,
+                    mode,
+                    window_start,
+                    window_end,
+                    scopes_json,
+                    sources_json,
+                    status,
+                    started_at,
+                    config_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (scheduled_for, "running", started_at, config_json),
+                (
+                    triggered_at,
+                    mode,
+                    window_start,
+                    window_end,
+                    to_json(scopes),
+                    to_json(sources),
+                    "running",
+                    started_at,
+                    config_json,
+                ),
             )
             return int(cursor.lastrowid)
 
     def finalize_run(
-        self, run_id: int, status: str, degraded: bool, degraded_reasons: list[str]
+        self,
+        run_id: int,
+        status: str,
+        degraded: bool,
+        degraded_reasons: list[str],
     ) -> None:
         with self.connect() as conn:
             conn.execute(
@@ -125,7 +193,7 @@ class SQLiteStorage:
     def save_report(
         self,
         run_id: int,
-        report: DailyMarketBrief,
+        report: ResearchBrief,
         markdown_path: str,
         pdf_path: str | None,
     ) -> None:
@@ -155,7 +223,7 @@ class SQLiteStorage:
         if not rows:
             return []
 
-        preferred_stage = 'audit_evidence'
+        preferred_stage = "audit_evidence"
         stages = [row[0] for row in rows]
         selected_stage = preferred_stage if preferred_stage in stages else stages[-1]
         return [

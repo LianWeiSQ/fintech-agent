@@ -5,6 +5,30 @@ from typing import Any, Literal
 
 Direction = Literal["bullish", "bearish", "neutral", "watch"]
 SourceTier = Literal["official", "tier1_media", "tier2_media", "social", "unknown"]
+RunMode = Literal["full_report", "collect_only"]
+ResearchScope = Literal[
+    "equity",
+    "commodities",
+    "precious_metals",
+    "crude_oil",
+    "usd",
+    "ust",
+    "risk_sentiment",
+    "cn_policy",
+    "global_macro",
+]
+
+ALL_RESEARCH_SCOPES: tuple[ResearchScope, ...] = (
+    "equity",
+    "commodities",
+    "precious_metals",
+    "crude_oil",
+    "usd",
+    "ust",
+    "risk_sentiment",
+    "cn_policy",
+    "global_macro",
+)
 
 
 @dataclass(slots=True)
@@ -146,6 +170,21 @@ class MarketImpactAssessment(Serializable):
 
 
 @dataclass(slots=True)
+class ResearchRunRequest(Serializable):
+    mode: str | None = None
+    triggered_at: str | None = None
+    lookback_hours: int | None = None
+    window_start: str | None = None
+    window_end: str | None = None
+    scopes: list[str] = field(default_factory=list)
+    sources: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "ResearchRunRequest":
+        return cls(**payload)
+
+
+@dataclass(slots=True)
 class IntegratedView(Serializable):
     cross_asset_themes: list[str]
     equity_view: list[str]
@@ -157,11 +196,17 @@ class IntegratedView(Serializable):
 
 
 @dataclass(slots=True)
-class DailyMarketBrief(Serializable):
+class ResearchBrief(Serializable):
     report_id: str
     run_id: int
-    scheduled_for: str
+    triggered_at: str
     generated_at: str
+    mode: RunMode
+    window_start: str
+    window_end: str
+    scopes: list[str]
+    sources: list[str]
+    overview: list[str]
     overnight_focus: list[str]
     core_events: list[str]
     cross_asset_themes: list[str]
@@ -177,8 +222,35 @@ class DailyMarketBrief(Serializable):
     degraded_reasons: list[str]
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "DailyMarketBrief":
+    def from_dict(cls, payload: dict[str, Any]) -> "ResearchBrief":
         return cls(**payload)
+
+
+DailyMarketBrief = ResearchBrief
+
+
+@dataclass(slots=True)
+class ResearchRunResult(Serializable):
+    run_id: int
+    mode: RunMode
+    triggered_at: str
+    window: NewsWindow
+    scopes: list[str]
+    sources: list[str]
+    raw_items: list[RawNewsItem] = field(default_factory=list)
+    clusters: list[NewsCluster] = field(default_factory=list)
+    events: list[CanonicalNewsEvent] = field(default_factory=list)
+    credibility_scores: list[CredibilityScore] = field(default_factory=list)
+    mappings: list[EventAssetMap] = field(default_factory=list)
+    assessments: list[MarketImpactAssessment] = field(default_factory=list)
+    integrated_view: IntegratedView = field(
+        default_factory=lambda: IntegratedView([], [], [], [], [], [], [])
+    )
+    audit_notes: list[str] = field(default_factory=list)
+    degraded_reasons: list[str] = field(default_factory=list)
+    report: ResearchBrief | None = None
+    markdown_path: str | None = None
+    pdf_path: str | None = None
 
 
 @dataclass(slots=True)
@@ -200,4 +272,3 @@ class PriceObservation(Serializable):
     observed_direction: str
     observed_move: float
     notes: str = ""
-

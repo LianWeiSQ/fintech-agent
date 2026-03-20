@@ -6,7 +6,7 @@ Fitech Agent is a Python-first, LangGraph-oriented multi-agent pipeline for:
 - normalizing and deduplicating events
 - scoring source credibility and evidence quality
 - mapping events to China and global macro assets
-- generating a daily Chinese pre-market brief with strategy-oriented views
+- generating an on-demand Chinese research brief with strategy-oriented views
 - storing the full research chain for replay and ex-post evaluation
 
 The repository is bootstrapped to run out of the box with a local sample feed while
@@ -28,11 +28,22 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -e .[dev]
 fitech-agent init-db --config config/example.toml
-fitech-agent run-daily --config config/example.toml
+fitech-agent run --config config/example.toml
+fitech-agent run --config config/example.toml --mode collect-only
 ```
 
 The default config uses `examples/sample_news.json` so the pipeline can be exercised
 without network access or provider credentials.
+
+## Manual runs
+
+- `fitech-agent run` executes the full research flow with config-driven defaults.
+- Use `--mode collect-only` to collect and audit sources without generating Markdown or PDF.
+- Override the window with `--triggered-at`, `--lookback-hours`, or explicit
+  `--window-start` / `--window-end`.
+- Narrow a run with repeated `--scope` and `--source` filters.
+- `fitech-agent run-daily` remains as a deprecated compatibility alias for
+  `fitech-agent run --mode full-report`.
 
 ## Live data and models
 

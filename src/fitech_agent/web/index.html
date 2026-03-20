@@ -1,0 +1,135 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fintech Agent 研究交互台</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Fintech Agent</div>
+        <h1>研究交互台</h1>
+        <p id="pageSubtitle">只保留你需要盯的研究窗口和模型交互过程。</p>
+      </div>
+      <div class="top-meta">
+        <span class="badge" id="modelBadge">模型检测中</span>
+        <span class="badge subtle" id="runWindow">等待运行</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel composer-panel">
+        <div class="panel-head">
+          <div>
+            <div class="section-kicker">Research Input</div>
+            <h2>提问并发起分析</h2>
+          </div>
+          <span class="status-tag" id="runBadge">待命</span>
+        </div>
+
+        <label class="field-label" for="promptInput">研究问题</label>
+        <textarea id="promptInput" class="prompt-input" rows="4" placeholder="例如：给我一份盘前简报，并解释黄金、原油、A股之间的主线关系。"></textarea>
+
+        <div class="quick-prompts" id="quickPrompts"></div>
+
+        <div class="control-row">
+          <div class="control-block">
+            <div class="field-label">运行模式</div>
+            <div class="segmented" id="modeSwitch"></div>
+          </div>
+          <div class="control-block compact">
+            <label class="field-label" for="lookbackHours">回看窗口 (小时)</label>
+            <input id="lookbackHours" class="number-input" type="number" min="1" max="72" value="18">
+          </div>
+        </div>
+
+        <div class="field-label">关注范围</div>
+        <div class="chip-group" id="scopeChips"></div>
+
+        <div class="action-row">
+          <button class="primary-btn" id="runResearchButton" type="button">开始分析</button>
+        </div>
+
+        <section class="stack-section">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Workflow</div>
+              <h3>模型交互过程</h3>
+            </div>
+          </div>
+          <ol class="workflow-list" id="workflowList"></ol>
+        </section>
+
+        <section class="stack-section">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Chat</div>
+              <h3>继续追问模型</h3>
+            </div>
+          </div>
+          <div class="chat-thread" id="chatThread"></div>
+          <div class="chat-compose">
+            <textarea id="chatInput" rows="3" placeholder="继续追问：比如现在最适合做多的主线是什么？"></textarea>
+            <div class="action-row right">
+              <button class="ghost-btn" id="chatSendButton" type="button">发送追问</button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="panel focus-panel">
+        <div class="panel-head">
+          <div>
+            <div class="section-kicker">Focus</div>
+            <h2>我现在要盯什么</h2>
+          </div>
+          <span class="status-tag accent" id="heroLabel">等待任务</span>
+        </div>
+
+        <div class="hero-card">
+          <div class="hero-score" id="heroScore">52</div>
+          <div class="hero-main">
+            <div class="hero-title" id="heroTitle">等待运行</div>
+            <div class="hero-summary" id="heroSummary">输入问题后启动一次分析，右侧只保留最值得关注的窗口。</div>
+          </div>
+        </div>
+
+        <section class="stack-section slim">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Focus Windows</div>
+              <h3>关注窗口</h3>
+            </div>
+          </div>
+          <div class="focus-cards" id="focusCards"></div>
+        </section>
+
+        <section class="stack-section slim">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Watchlist</div>
+              <h3>盯盘清单</h3>
+            </div>
+          </div>
+          <div class="watchlist" id="watchlist"></div>
+        </section>
+
+        <section class="stack-section slim">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Run Context</div>
+              <h3>当前研究窗口</h3>
+            </div>
+          </div>
+          <div class="run-meta" id="runMeta"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

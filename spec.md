@@ -1,162 +1,405 @@
-# 全球新闻-金融市场影响多 Agent 系统 V1 Spec
+# Fitech Agent 手动触发研究流水线 Spec
 
-## 1. 产品目标
+## 1. 产品定位
 
-构建一个面向专业交易者与研究员的“早盘研究生产线”。系统需要在北京时间每日 07:00 前，自动完成全球新闻采集、事件归一、金融市场影响分析、证据审计与中文日报生成，并保留完整的研究链路，支持 D0 / D1 / D5 复盘评估。
+Fitech Agent 是一个面向专业交易者与研究员的手动触发研究引擎，不再依赖固定的北京时间 07:00 定时任务。  
+用户可以在任意时点主动发起一次研究运行，系统自动完成：
 
-首版聚焦中国市场与全球宏观驱动：A 股指数与重点板块、国内期货、黄金、白银、原油，以及美元、美债、全球风险偏好、中国政策和海外宏观事件之间的联动。
+- 全球新闻采集
+- 事件归一与结构化抽取
+- 可信度与证据审计
+- 跨资产市场影响分析
+- 中文研究简报生成
+- D0 / D1 / D5 复盘评估所需链路留存
 
-## 2. 输出边界
+首版聚焦以下研究范围：
 
-- 输出“方向 + 情景 + 风险”的专业策略建议。
-- 不做自动交易、不输出个股级全面推荐、不直接给出入场价、止损价和仓位。
-- 交付形式为 Markdown 主报告，PDF 为发布件；同时保存原始新闻、结构化事件、分析结论与后验评估结果。
+- A 股指数与重点板块
+- 国内期货
+- 黄金、白银
+- 原油与能源链
+- 美元、美债
+- 全球风险偏好
+- 中国政策
+- 海外宏观事件
 
-## 3. 核心多 Agent 设计
+## 2. 目标与边界
 
-系统包含 9 个核心 Agent，按 LangGraph 状态图编排：
+### 2.1 目标
 
-1. 新闻采集 Agent：从 RSS、文件源、后续 API / 付费源采集新闻。
-2. 清洗去重/翻译 Agent：完成中英归一、聚类去重、文本规范化。
-3. 事件抽取 Agent：输出 `CanonicalNewsEvent`，识别事件类型、偏向和区域。
-4. 可信度评分 Agent：基于来源分级、交叉验证数量和证据完整度生成 `CredibilityScore`。
-5. 资产映射 Agent：把事件映射到资产、板块与宏观因子。
-6. 领域分析 Agent：生成各领域 `MarketImpactAssessment`。
-7. 跨资产策略整合 Agent：汇总主线、风险情景与观察清单。
-8. 证据审计 Agent：执行发布门禁，将低可信结论降级为观察项。
-9. 报告生成 Agent：输出 `DailyMarketBrief`，并生成 Markdown / PDF。
+- 把一次研究运行沉淀为完整、可追踪、可复盘的研究链路
+- 支持默认全市场运行，也支持按 scope / source / 时间窗做局部运行
+- 输出适合盘前、盘中、盘后使用的通用研究简报，而不是只服务早盘场景
 
-整体执行链路：
+### 2.2 非目标
 
-`定时触发 -> 多源采集 -> 聚类归一 -> 事件结构化 -> 可信度评分 -> 资产映射 -> 分市场分析 -> 跨资产整合 -> 审计门禁 -> 报告发布 -> 结果回溯`
+- 不做自动定时调度
+- 不做 HTTP API / Web 服务
+- 不做自动交易、自动下单、仓位管理
+- 不做个股级全面覆盖
+- 不做主题关键词驱动的开放式研究助手
 
-## 4. 数据模型
+## 3. 运行模式
 
-### 4.1 Public Types
+系统支持两种运行模式：
+
+### 3.1 `full-report`
+
+执行完整链路：
+
+`start_run -> collect_news -> normalize_news -> extract_events -> score_credibility -> map_assets -> filter_scope -> analyze_domains -> integrate_strategy -> audit_evidence -> generate_report`
+
+输出：
+
+- 研究运行记录
+- 原始新闻与各阶段 payload
+- `ResearchBrief`
+- Markdown / PDF 报告文件
+
+### 3.2 `collect-only`
+
+仅执行：
+
+`start_run -> collect_news -> finalize`
+
+输出：
+
+- 研究运行记录
+- 原始新闻与采集阶段 payload
+- 不生成事件、评估、Markdown、PDF
+
+## 4. 触发方式与接口
+
+### 4.1 CLI
+
+主命令：
+
+```bash
+fitech-agent run
+```
+
+支持参数：
+
+- `--mode {full-report,collect-only}`
+- `--triggered-at <ISO8601>`
+- `--lookback-hours <int>`
+- `--window-start <ISO8601>`
+- `--window-end <ISO8601>`
+- 重复 `--scope <value>`
+- 重复 `--source <name>`
+- `--config <path>`
+
+兼容入口：
+
+```bash
+fitech-agent run-daily
+```
+
+说明：
+
+- `run-daily` 是兼容别名
+- 内部等价于 `run --mode full-report`
+- 会输出 deprecation 提示
+
+### 4.2 Python API
+
+主入口：
+
+- `ResearchPipeline`
+
+请求模型：
+
+- `ResearchRunRequest`
+
+返回模型：
+
+- `ResearchRunResult`
+
+兼容别名：
+
+- `NewsPipeline = ResearchPipeline`
+
+## 5. 时间窗规则
+
+系统统一用 `triggered_at` 作为运行时间锚点。
+
+优先级如下：
+
+1. 如果同时传入 `window_start` 和 `window_end`，直接使用显式窗口
+2. 否则使用 `triggered_at - lookback_hours` 生成窗口
+3. 如果未传 `lookback_hours`，使用配置中的默认值
+
+约束：
+
+- `window_start` / `window_end` 必须成对出现
+- 单边传入时报错
+- `window_start < window_end`
+- 默认时间窗为 `triggered_at` 往前 18 小时
+
+## 6. Scope 与 Source 语义
+
+### 6.1 Scope
+
+合法值固定为：
+
+- `equity`
+- `commodities`
+- `precious_metals`
+- `crude_oil`
+- `usd`
+- `ust`
+- `risk_sentiment`
+- `cn_policy`
+- `global_macro`
+
+规则：
+
+- 未传时默认覆盖全部 scope
+- `scope` 只影响下游事件、映射、分析与报告
+- `scope` 不影响 source 的采集 allowlist
+
+### 6.2 Source
+
+`source` 是 source name allowlist。
+
+规则：
+
+- 未传时默认使用全部启用的数据源
+- 只影响采集阶段选择哪些 source adapter
+- 不改变后续分析逻辑
+
+## 7. 核心 Agent 链路
+
+系统保留 9 个核心 Agent：
+
+1. 新闻采集 Agent
+2. 归一化 / 去重 Agent
+3. 事件抽取 Agent
+4. 可信度评分 Agent
+5. 资产映射 Agent
+6. 领域分析 Agent
+7. 跨资产整合 Agent
+8. 证据审计 Agent
+9. 报告生成 Agent
+
+其中新增一个显式的 `filter_scope` 阶段，用于在资产映射之后、领域分析之前完成范围裁剪。
+
+## 8. 数据模型
+
+### 8.1 Public Types
 
 - `RawNewsItem`
 - `CanonicalNewsEvent`
 - `CredibilityScore`
 - `EventAssetMap`
 - `MarketImpactAssessment`
-- `DailyMarketBrief`
+- `ResearchRunRequest`
+- `ResearchBrief`
+- `ResearchRunResult`
 - `ForecastOutcome`
 
-### 4.2 关键字段要求
+### 8.2 `ResearchRunRequest`
 
-`MarketImpactAssessment` 至少包含：
+字段：
 
-- 影响资产
-- 影响板块
-- 方向
-- 置信度
-- 影响期限
-- 传导路径
-- 关键证据
-- 反证/风险点
-- 观察指标
-- 审计状态
+- `mode`
+- `triggered_at`
+- `lookback_hours`
+- `window_start`
+- `window_end`
+- `scopes`
+- `sources`
 
-`DailyMarketBrief` 至少包含：
+### 8.3 `ResearchBrief`
 
-- 隔夜重点
+`ResearchBrief` 是新的主报告模型，用来替代早期的 `DailyMarketBrief`。
+
+必须包含：
+
+- `triggered_at`
+- `window_start`
+- `window_end`
+- `mode`
+- `scopes`
+- `sources`
+- `overview`
+- `overnight_focus`
+- `core_events`
+- `cross_asset_themes`
+- `equity_view`
+- `commodities_view`
+- `precious_metals_view`
+- `crude_oil_view`
+- `risk_scenarios`
+- `watchlist`
+- `evidence_appendix`
+- `degraded_reasons`
+
+兼容策略：
+
+- 代码中保留 `DailyMarketBrief = ResearchBrief` 别名
+- 新实现统一以 `ResearchBrief` 为主
+
+### 8.4 `ResearchRunResult`
+
+必须包含：
+
+- `run_id`
+- `mode`
+- `triggered_at`
+- `window`
+- `scopes`
+- `sources`
+- `raw_items`
+- `clusters`
+- `events`
+- `credibility_scores`
+- `mappings`
+- `assessments`
+- `integrated_view`
+- `audit_notes`
+- `degraded_reasons`
+- `report`
+- `markdown_path`
+- `pdf_path`
+
+## 9. 报告产物
+
+### 9.1 报告视图
+
+报告标题从“早盘研究简报”升级为“研究简报”。
+
+首段固定为“本次触发概览”，至少输出：
+
+- `triggered_at`
+- `window`
+- `mode`
+- `scope`
+- `source`
+
+其余章节保留当前研究结构：
+
+- 重点线索
 - 核心事件
 - 跨资产主线
-- A 股与重点板块观点
-- 商品期货观点
-- 黄金白银观点
-- 原油与能源观点
+- A 股与重点板块
+- 商品期货
+- 贵金属
+- 原油与能源
 - 风险情景
-- 今日观察清单
+- 观察清单
 - 证据附录
 - 降级说明
 
-## 5. 来源与可信度策略
+### 9.2 文件命名
 
-### 5.1 来源分层
+报告文件统一命名为：
 
-- `official`: 官方披露、央行、政府、交易所、机构公告
-- `tier1_media`: 头部财经媒体与高可信资讯源
-- `tier2_media`: 一般财经媒体或行业媒体
-- `social`: 社媒与未经验证的线索源
-- `unknown`: 未明确分级来源
+- `research_run_<run_id>.md`
+- `research_run_<run_id>.pdf`
 
-### 5.2 发布门禁
+不再使用 `daily_brief_*` 命名。
 
-- 正式策略结论必须具备证据引用。
-- 可信度分数低于阈值，或无足够二次验证的事件，只能进入“观察项”。
-- 单一低可信来源、纯社媒、缺失证据链的分析不得进入主结论。
+## 10. 配置
 
-## 6. 技术架构
+配置继续使用 TOML。
 
-- Python 3.11+
-- LangGraph：主编排框架
-- LiteLLM：统一模型路由，允许后续接 OpenAI / Anthropic / 国产模型
-- LangSmith：预留 tracing / evaluation 接口
-- SQLite：首版全链路审计存储
-- ReportLab：PDF 渲染
+### 10.1 保留配置
 
-当前实现提供：
+- `timezone`
+- `report_language`
+- `database_path`
+- `report_dir`
+- `[audit]`
+- `[model_route]`
+- `[[sources]]`
 
-- `config/example.toml`：可运行配置
-- `examples/sample_news.json`：离线示例新闻
-- `src/fitech_agent/pipeline.py`：主工作流
-- `src/fitech_agent/langgraph_app.py`：LangGraph app 入口
-- `tests/`：基础验收测试
+### 10.2 新增配置
 
-## 7. 配置原则
+```toml
+[run_defaults]
+mode = "full_report"
+lookback_hours = 18
+```
 
-配置项统一放在 TOML 中，而不是写死在 prompt 内。当前已抽象：
+说明：
 
-- 调度时区与报告时间
-- 报告输出目录
-- 数据库路径
-- 模型路由
-- 审计阈值
-- 数据源列表
+- 旧的 `report_time` 调度语义已废弃
+- 默认运行模式为 `full_report`
+- 默认时间窗回看 18 小时
 
-后续可继续扩展：
+## 11. 存储与链路留存
 
-- 资产池
-- 源白名单与优先级
-- 模板样式
-- 回测窗口
-- 价格数据接入方式
+SQLite 继续作为首版审计存储。
 
-## 8. 测试与验收
+### 11.1 runs 表核心字段
 
-首版验收以“研究质量 + 可追溯性”为核心，而不是短期命中率最大化。测试至少包括：
+- `triggered_at`
+- `mode`
+- `window_start`
+- `window_end`
+- `scopes_json`
+- `sources_json`
+- `status`
+- `degraded`
+- `degraded_reasons`
+- `config_json`
 
-- 双语归一：同一事件的中英文报道应聚合为单一事件簇。
-- 审计门禁：低可信来源应被降级为 `watch_only`。
-- 端到端产出：日报应成功生成 Markdown，并在可用时生成 PDF。
-- 降级鲁棒性：部分源失败时仍能产出带降级说明的报告。
-- 事后评估：系统应支持将价格观察结果写回 `ForecastOutcome`。
+### 11.2 兼容策略
 
-## 9. V1 非目标
+- 不做旧 schema 自动迁移
+- 现有本地数据库视为可重建资产
+- 如旧库缺少新字段，提示删除数据库后重新初始化
 
-V1 明确不做以下能力：
+## 12. LangGraph 入口
 
-- 盘中快讯
-- Web 仪表盘
-- 全市场个股级映射
-- 自动下单与执行
-- 强依赖付费源才能运行
+主图名更新为：
 
-## 10. 后续演进方向
+- `research_run`
 
-- 增加 API / 付费数据源与行情源适配器
-- 引入 instrument-level 映射层支持自选标的
-- 引入人工审核工作台与发布审批流
-- 增加盘中重大事件快报
-- 用 LangSmith / 历史回放集做系统化评估与 prompt 优化
+兼容保留：
 
-## 11. GitHub ??????
+- `daily_brief`
 
-- ???????`.env` ?????????????????
-- ??????????????????????????
-- ?????????????????????? `.gitignore` ????????????
-- ?????????
-  - `official`: ???????????????????Fed?OPEC?CME
-  - `tier1_media`: Reuters?Bloomberg
-  - `tier2_media`: ?????????
+两者当前都指向同一图入口，便于本地调试脚本过渡。
+
+## 13. 评估与验收
+
+### 13.1 CLI 验收
+
+- `fitech-agent run` 默认可成功生成 full-report
+- `fitech-agent run --mode collect-only` 只采集、不出报告
+- `--window-start/--window-end` 优先级高于 `--lookback-hours`
+- 只传单边窗口参数时报错
+- `run-daily` 仍可执行且有 deprecation 提示
+
+### 13.2 Python API / 模型验收
+
+- `ResearchRunRequest` 默认值可继承 `run_defaults`
+- `scope` 只裁剪下游分析与报告
+- `source` 只裁剪采集阶段
+- `ResearchBrief` 可正常序列化、存储、渲染
+
+### 13.3 业务链路验收
+
+- full-report 模式继续支持端到端样例
+- collect-only 模式不会生成 Markdown / PDF
+- source 失败时，full-report 可以降级完成
+- collect-only 遇到 source 失败时也会记录 degraded reason
+- D0 / D1 / D5 评估仍基于 `run_id` 工作
+
+## 14. 当前默认值
+
+- 默认入口：`fitech-agent run`
+- 默认模式：`full_report`
+- 默认时间窗：向前 18 小时
+- 默认 scope：全量 scope
+- 默认 source：所有启用 source
+
+## 15. 后续演进方向
+
+- 增加 HTTP API / 服务化封装
+- 支持主题驱动或关键词驱动的临时研究运行
+- 增加更多实时数据源与行情源
+- 补充更细粒度的资产映射与指标观测
+- 引入更完善的 schema migration 与运行观测体系
