@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -40,14 +41,43 @@ class AppConfig:
     timezone: str = "Asia/Shanghai"
     report_time: str = "07:00"
     report_language: str = "zh-CN"
-    database_path: str = "artifacts/news_employee.db"
+    database_path: str = "artifacts/fitech_agent.db"
     report_dir: str = "artifacts/reports"
     sources: list[SourceDefinition] = field(default_factory=list)
     audit: AuditSettings = field(default_factory=AuditSettings)
     model_route: ModelRoute = field(default_factory=ModelRoute)
 
 
+def load_dotenv(path: str | Path = ".env") -> Path | None:
+    env_path = Path(path)
+    if not env_path.exists():
+        return None
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        value = value.strip()
+        if value and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+    return env_path
+
+
+def default_config_path() -> Path:
+    return Path(os.environ.get("FITECH_AGENT_CONFIG", "config/example.toml"))
+
+
 def load_config(path: str | Path | None = None) -> AppConfig:
+    load_dotenv()
     if path is None:
         return AppConfig()
 
@@ -67,7 +97,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         timezone=payload.get("timezone", "Asia/Shanghai"),
         report_time=payload.get("report_time", "07:00"),
         report_language=payload.get("report_language", "zh-CN"),
-        database_path=payload.get("database_path", "artifacts/news_employee.db"),
+        database_path=payload.get("database_path", "artifacts/fitech_agent.db"),
         report_dir=payload.get("report_dir", "artifacts/reports"),
         sources=sources,
         audit=audit,

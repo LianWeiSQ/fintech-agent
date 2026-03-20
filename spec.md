@@ -100,8 +100,8 @@
 
 - `config/example.toml`：可运行配置
 - `examples/sample_news.json`：离线示例新闻
-- `src/news_employee/pipeline.py`：主工作流
-- `src/news_employee/langgraph_app.py`：LangGraph app 入口
+- `src/fitech_agent/pipeline.py`：主工作流
+- `src/fitech_agent/langgraph_app.py`：LangGraph app 入口
 - `tests/`：基础验收测试
 
 ## 7. 配置原则

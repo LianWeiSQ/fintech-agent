@@ -1,4 +1,4 @@
-"""News Employee package."""
+"""Fitech Agent package."""
 
 from .config import AppConfig, load_config
 from .pipeline import NewsPipeline

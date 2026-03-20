@@ -23,9 +23,19 @@ class LiteLLMClient:
     def available(self) -> bool:
         return (
             self._completion is not None
-            and bool(self.route.model)
+            and bool(self._resolved_model())
             and bool(self._resolved_api_key())
         )
+
+    def _resolved_model(self) -> str:
+        if self.route.model:
+            return self.route.model
+        env_model = os.getenv("OPENAI_MODEL", "").strip()
+        if not env_model:
+            return ""
+        if "/" in env_model:
+            return env_model
+        return f"openai/{env_model}"
 
     def _resolved_api_key(self) -> str:
         if not self.route.api_key_env:
@@ -33,11 +43,11 @@ class LiteLLMClient:
         return os.getenv(self.route.api_key_env, "")
 
     def _resolved_base_url(self) -> str:
-        return self.route.base_url or ""
+        return os.getenv("OPENAI_BASE_URL", "").strip() or self.route.base_url or ""
 
     def _completion_kwargs(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
-            "model": self.route.model,
+            "model": self._resolved_model(),
             "temperature": self.route.temperature,
             "max_tokens": self.route.max_output_tokens,
             "messages": [
@@ -89,6 +99,7 @@ class LiteLLMClient:
 
     def snapshot(self) -> dict[str, Any]:
         snapshot = asdict(self.route)
+        snapshot["resolved_model"] = self._resolved_model()
         snapshot["resolved_base_url"] = self._resolved_base_url()
         snapshot["api_key_configured"] = bool(self._resolved_api_key())
         return snapshot

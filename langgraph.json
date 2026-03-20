@@ -1,7 +1,7 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "daily_brief": "./src/news_employee/langgraph_app.py:graph"
+    "daily_brief": "./src/fitech_agent/langgraph_app.py:graph"
   },
   "env": "./.env"
 }

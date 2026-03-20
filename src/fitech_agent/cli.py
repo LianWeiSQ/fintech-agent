@@ -3,32 +3,33 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .config import load_config
+from .config import default_config_path, load_config, load_dotenv
 from .evaluation import ForecastEvaluator, load_price_observations
 from .pipeline import NewsPipeline
 from .storage import SQLiteStorage
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the News Employee pipeline.")
+def build_parser(default_config: Path) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run the Fitech Agent pipeline.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init_db = subparsers.add_parser("init-db", help="Initialize the SQLite store.")
-    init_db.add_argument("--config", type=Path, default=Path("config/example.toml"))
+    init_db.add_argument("--config", type=Path, default=default_config)
 
     run_daily = subparsers.add_parser("run-daily", help="Run the daily briefing pipeline.")
-    run_daily.add_argument("--config", type=Path, default=Path("config/example.toml"))
+    run_daily.add_argument("--config", type=Path, default=default_config)
     run_daily.add_argument("--scheduled-for", type=str, default=None)
 
     evaluate = subparsers.add_parser("evaluate", help="Evaluate a stored run against observations.")
-    evaluate.add_argument("--config", type=Path, default=Path("config/example.toml"))
+    evaluate.add_argument("--config", type=Path, default=default_config)
     evaluate.add_argument("--run-id", type=int, required=True)
     evaluate.add_argument("--prices-file", type=Path, required=True)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
+    load_dotenv()
+    parser = build_parser(default_config_path())
     args = parser.parse_args(argv)
     config = load_config(args.config)
 

@@ -11,10 +11,10 @@ TMP_ROOT = ROOT / "tmp_tests_runtime"
 TMP_ROOT.mkdir(exist_ok=True)
 sys.path.insert(0, str(ROOT / "src"))
 
-from news_employee.config import AppConfig, AuditSettings, ModelRoute, SourceDefinition
-from news_employee.evaluation import ForecastEvaluator, load_price_observations
-from news_employee.pipeline import NewsPipeline
-from news_employee.storage import SQLiteStorage
+from fitech_agent.config import AppConfig, AuditSettings, ModelRoute, SourceDefinition
+from fitech_agent.evaluation import ForecastEvaluator, load_price_observations
+from fitech_agent.pipeline import NewsPipeline
+from fitech_agent.storage import SQLiteStorage
 
 
 class PipelineTests(unittest.TestCase):
@@ -44,7 +44,7 @@ class PipelineTests(unittest.TestCase):
                 )
             )
         return AppConfig(
-            database_path=str((tmpdir / "news_employee.db").resolve()),
+            database_path=str((tmpdir / "fitech_agent.db").resolve()),
             report_dir=str((tmpdir / "reports").resolve()),
             sources=sources,
             audit=AuditSettings(),

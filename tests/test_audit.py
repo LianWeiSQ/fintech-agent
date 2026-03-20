@@ -7,9 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from news_employee.agents.audit import EvidenceAuditAgent
-from news_employee.config import AuditSettings
-from news_employee.models import CredibilityScore, EvidenceRef, MarketImpactAssessment
+from fitech_agent.agents.audit import EvidenceAuditAgent
+from fitech_agent.config import AuditSettings
+from fitech_agent.models import CredibilityScore, EvidenceRef, MarketImpactAssessment
 
 
 class AuditTests(unittest.TestCase):

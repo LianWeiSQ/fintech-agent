@@ -1,0 +1,2 @@
+[console_scripts]
+fitech-agent = fitech_agent.cli:main

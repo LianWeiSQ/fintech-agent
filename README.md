@@ -1,6 +1,6 @@
-# News Employee
+# Fitech Agent
 
-News Employee is a Python-first, LangGraph-oriented multi-agent pipeline for:
+Fitech Agent is a Python-first, LangGraph-oriented multi-agent pipeline for:
 
 - collecting bilingual macro and market-moving news
 - normalizing and deduplicating events
@@ -27,8 +27,8 @@ keeping live-source and model-routing interfaces pluggable.
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e .[dev]
-news-employee init-db --config config/example.toml
-news-employee run-daily --config config/example.toml
+fitech-agent init-db --config config/example.toml
+fitech-agent run-daily --config config/example.toml
 ```
 
 The default config uses `examples/sample_news.json` so the pipeline can be exercised
@@ -37,7 +37,7 @@ without network access or provider credentials.
 ## Live data and models
 
 - Add RSS or file sources in `config/example.toml`.
-- Set `NEWS_EMPLOYEE_CONFIG` to point LangGraph CLI at a custom config.
+- Set `FITECH_AGENT_CONFIG` to point LangGraph CLI at a custom config.
 - Keep provider credentials only in ignored local files or shell environment variables.
 - If you need model routing, put it in a local override such as `config/local.toml`,
   which is ignored by Git.
@@ -58,5 +58,5 @@ The graph entrypoint is declared in `langgraph.json`.
 - `config/example.toml`: committed, credential-free example configuration
 - `examples/`: sample news and evaluation fixtures
 - `spec.md`: product and implementation specification
-- `src/news_employee/`: pipeline package
+- `src/fitech_agent/`: pipeline package
 - `tests/`: unit tests focused on normalization, audit gates, and end-to-end output

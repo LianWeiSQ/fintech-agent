@@ -1,7 +1,7 @@
 timezone = "Asia/Shanghai"
 report_time = "07:00"
 report_language = "zh-CN"
-database_path = "artifacts/news_employee.db"
+database_path = "artifacts/fitech_agent.db"
 report_dir = "artifacts/reports"
 
 [audit]

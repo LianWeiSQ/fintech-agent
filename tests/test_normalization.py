@@ -7,8 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from news_employee.agents.normalize import NormalizationAgent
-from news_employee.models import RawNewsItem
+from fitech_agent.agents.normalize import NormalizationAgent
+from fitech_agent.models import RawNewsItem
 
 
 class NormalizationTests(unittest.TestCase):

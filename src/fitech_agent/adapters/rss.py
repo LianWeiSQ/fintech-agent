@@ -31,7 +31,7 @@ class RSSSourceAdapter(SourceAdapter):
     def fetch(self, window: NewsWindow, collected_at: str) -> list[RawNewsItem]:
         request = urllib.request.Request(
             self.definition.endpoint,
-            headers={"User-Agent": "news-employee/0.1"},
+            headers={"User-Agent": "fitech-agent/0.1"},
         )
         with urllib.request.urlopen(request, timeout=20) as response:
             payload = response.read()
