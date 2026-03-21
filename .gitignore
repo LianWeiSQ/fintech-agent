@@ -36,6 +36,9 @@ pip-wheel-metadata/
 
 artifacts/
 *.log
+.tools/
+skills/*
+!skills/README.md
 
 .ipynb_checkpoints/
 

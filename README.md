@@ -54,7 +54,28 @@ without network access or provider credentials.
 - `report`: brief composition, markdown/pdf rendering, report persistence
 
 Each core agent lives under `src/fitech_agent/agents/<agent_id>/` and carries its own
-`skill.md`, `prompts.py`, `runtime.py`, and `steps/` directory.
+`skill.md`, `prompts.py`, `runtime.py`, `steps/`, and support files under
+`references/`, `checklists/`, `templates/`, and `examples/`.
+
+## Skill overlays and ClawHub
+
+- Built-in agent skills load from `src/fitech_agent/agents/<agent_id>/skill.md`
+- External overlay packs load from `skills/agents/<agent_id>/` and `skills/<pack>/agents/<agent_id>/`
+- The workspace includes a local ClawHub wrapper at `scripts/clawhub.ps1`
+- Local install command:
+
+```bash
+npm.cmd install --prefix .tools/clawhub clawhub@0.8.0
+```
+
+- Verify the CLI:
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\scripts\clawhub.ps1 --help
+```
+
+- ClawHub's default install directory is already compatible with this project's overlay loader
+- Review external skills before using them in research runs; overlays change prompts and heuristics
 
 ## Live data and models
 

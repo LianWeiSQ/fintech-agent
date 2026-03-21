@@ -2,6 +2,7 @@ timezone = "Asia/Shanghai"
 report_language = "zh-CN"
 database_path = "artifacts/fitech_agent.db"
 report_dir = "artifacts/reports"
+skill_dirs = ["skills"]
 
 [audit]
 min_verified_score = 0.65

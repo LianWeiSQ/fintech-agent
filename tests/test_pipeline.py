@@ -248,6 +248,41 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(spec.metadata.get("agent_id"), agent_id)
             self.assertTrue(spec.body)
 
+    def test_overlay_skill_pack_is_merged_into_agent_prompt_context(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            overlay_root = runtime_dir / "skills" / "macro-pack" / "agents" / "market_reasoning"
+            (overlay_root / "references").mkdir(parents=True)
+            (overlay_root / "skill.md").write_text(
+                "\n".join(
+                    [
+                        "---",
+                        "agent_id: market_reasoning",
+                        "version: 2",
+                        "---",
+                        "",
+                        "Overlay skill body for market reasoning.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            (overlay_root / "references" / "overlay_map.md").write_text(
+                "Overlay transmission reference.",
+                encoding="utf-8",
+            )
+            loader = AgentSkillLoader(workspace_root=runtime_dir)
+            spec = loader.load(
+                "market_reasoning",
+                ROOT / "src" / "fitech_agent" / "agents" / "market_reasoning" / "skill.md",
+                extra_roots=["skills"],
+            )
+            prompt_context = spec.prompt_context()
+            self.assertIn("Overlay skill body for market reasoning.", prompt_context)
+            self.assertIn("Overlay transmission reference.", prompt_context)
+            self.assertGreaterEqual(len(spec.source_paths), 2)
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
 
 if __name__ == "__main__":
     unittest.main()
