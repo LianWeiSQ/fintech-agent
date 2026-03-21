@@ -72,11 +72,17 @@ class LiteLLMClient:
         except Exception:
             return None
 
-    def translate(self, text: str, target_language: str = "????") -> str:
+    def translate(
+        self,
+        text: str,
+        target_language: str = "????",
+        system_prompt: str | None = None,
+    ) -> str:
         if not text:
             return text
         result = self.complete_text(
-            system_prompt="You are a financial translator. Keep facts precise.",
+            system_prompt=system_prompt
+            or "You are a financial translator. Keep facts precise.",
             user_prompt=(
                 f"Translate the following market news into {target_language}. "
                 "Do not add facts. Keep names, numbers, and dates intact.\n\n"

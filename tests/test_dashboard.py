@@ -49,7 +49,7 @@ class DashboardServiceTests(unittest.TestCase):
             self.assertEqual(payload["title"], "Fintech Agent 控盘台")
             self.assertEqual(payload["defaults"]["mode"], "full_report")
             self.assertEqual(payload["sources"][0]["name"], "bootstrap_sample")
-            self.assertEqual(len(payload["workflow"]), 6)
+            self.assertEqual(len(payload["workflow"]), 5)
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 

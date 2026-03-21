@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from fitech_agent.config import AppConfig, AuditSettings, ModelRoute, RunDefaults, SourceDefinition
 from fitech_agent.evaluation import ForecastEvaluator, load_price_observations
+from fitech_agent.agents.skill_loader import AgentSkillLoader
 from fitech_agent.models import ResearchRunRequest
 from fitech_agent.pipeline import NewsPipeline, ResearchPipeline
 from fitech_agent.storage import SQLiteStorage
@@ -201,6 +202,51 @@ class PipelineTests(unittest.TestCase):
                 self.assertIn(outcome.evaluation_window, {"D0", "D1", "D5"})
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
+
+
+    def test_full_report_records_core_agents_and_substages(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            config = self._build_config(runtime_dir)
+            result = ResearchPipeline(config).run(
+                ResearchRunRequest(triggered_at="2026-03-20T07:00:00+08:00")
+            )
+            storage = SQLiteStorage(config.database_path)
+            with storage.connect() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT DISTINCT agent_id, substage
+                    FROM stage_payloads
+                    WHERE run_id = ?
+                    ORDER BY agent_id, substage
+                    """,
+                    (result.run_id,),
+                ).fetchall()
+            agent_ids = {row[0] for row in rows}
+            substages = {row[1] for row in rows}
+            self.assertEqual(
+                agent_ids,
+                {"ingestion", "event_intelligence", "market_reasoning", "audit", "report"},
+            )
+            self.assertIn("normalize", substages)
+            self.assertIn("persist_report", substages)
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
+    def test_core_agent_skills_load_from_agent_directories(self) -> None:
+        loader = AgentSkillLoader()
+        root = ROOT / "src" / "fitech_agent" / "agents"
+        for agent_id in (
+            "ingestion",
+            "event_intelligence",
+            "market_reasoning",
+            "audit",
+            "report",
+        ):
+            spec = loader.load(agent_id, root / agent_id / "skill.md")
+            self.assertTrue(spec.exists)
+            self.assertEqual(spec.metadata.get("agent_id"), agent_id)
+            self.assertTrue(spec.body)
 
 
 if __name__ == "__main__":

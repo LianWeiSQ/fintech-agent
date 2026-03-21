@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..models import (
+from ....models import (
     CanonicalNewsEvent,
     IntegratedView,
     MarketImpactAssessment,
@@ -8,7 +8,7 @@ from ..models import (
     ResearchBrief,
     RunMode,
 )
-from ..utils import stable_id, utc_now_iso
+from ....utils import stable_id, utc_now_iso
 
 
 def _mode_label(mode: RunMode) -> str:
@@ -70,8 +70,7 @@ class ReportGenerationAgent:
             cross_asset_themes=integrated_view.cross_asset_themes or ["暂无明确跨资产主线。"],
             equity_view=integrated_view.equity_view or ["暂无高置信度 A 股主线。"],
             commodities_view=integrated_view.commodities_view or ["暂无高置信度商品主线。"],
-            precious_metals_view=integrated_view.precious_metals_view
-            or ["暂无高置信度贵金属主线。"],
+            precious_metals_view=integrated_view.precious_metals_view or ["暂无高置信度贵金属主线。"],
             crude_oil_view=integrated_view.crude_oil_view or ["暂无高置信度原油主线。"],
             risk_scenarios=integrated_view.risk_scenarios or ["暂无新增风险情景。"],
             watchlist=watchlist or ["暂无。"],

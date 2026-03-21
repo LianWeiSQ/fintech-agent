@@ -185,6 +185,23 @@ class ResearchRunRequest(Serializable):
 
 
 @dataclass(slots=True)
+class CollectedNewsBatch(Serializable):
+    window: NewsWindow
+    scopes: list[str]
+    sources: list[str]
+    raw_items: list[RawNewsItem] = field(default_factory=list)
+    degraded_reasons: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class EventIntelligenceBundle(Serializable):
+    collected: CollectedNewsBatch
+    clusters: list[NewsCluster] = field(default_factory=list)
+    events: list[CanonicalNewsEvent] = field(default_factory=list)
+    credibility_scores: list[CredibilityScore] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class IntegratedView(Serializable):
     cross_asset_themes: list[str]
     equity_view: list[str]
@@ -193,6 +210,25 @@ class IntegratedView(Serializable):
     crude_oil_view: list[str]
     risk_scenarios: list[str]
     watchlist: list[str]
+
+
+@dataclass(slots=True)
+class MarketReasoningBundle(Serializable):
+    intelligence: EventIntelligenceBundle
+    scopes: list[str]
+    mappings: list[EventAssetMap] = field(default_factory=list)
+    assessments: list[MarketImpactAssessment] = field(default_factory=list)
+    integrated_view: IntegratedView = field(
+        default_factory=lambda: IntegratedView([], [], [], [], [], [], [])
+    )
+
+
+@dataclass(slots=True)
+class AuditBundle(Serializable):
+    reasoning: MarketReasoningBundle
+    assessments: list[MarketImpactAssessment] = field(default_factory=list)
+    audit_notes: list[str] = field(default_factory=list)
+    degraded_reasons: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -227,6 +263,14 @@ class ResearchBrief(Serializable):
 
 
 DailyMarketBrief = ResearchBrief
+
+
+@dataclass(slots=True)
+class ReportBundle(Serializable):
+    audit: AuditBundle
+    report: ResearchBrief | None = None
+    markdown_path: str | None = None
+    pdf_path: str | None = None
 
 
 @dataclass(slots=True)

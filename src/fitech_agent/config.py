@@ -37,6 +37,36 @@ class ModelRoute:
 
 
 @dataclass(slots=True)
+class AgentRouteOverride:
+    provider: str | None = None
+    model: str | None = None
+    temperature: float | None = None
+    max_output_tokens: int | None = None
+    base_url: str | None = None
+    api_key_env: str | None = None
+
+    def apply_to(self, base: ModelRoute) -> ModelRoute:
+        return ModelRoute(
+            provider=self.provider if self.provider not in {None, ""} else base.provider,
+            model=self.model if self.model not in {None, ""} else base.model,
+            temperature=(
+                self.temperature if self.temperature is not None else base.temperature
+            ),
+            max_output_tokens=(
+                self.max_output_tokens
+                if self.max_output_tokens is not None
+                else base.max_output_tokens
+            ),
+            base_url=self.base_url if self.base_url not in {None, ""} else base.base_url,
+            api_key_env=(
+                self.api_key_env
+                if self.api_key_env not in {None, ""}
+                else base.api_key_env
+            ),
+        )
+
+
+@dataclass(slots=True)
 class RunDefaults:
     mode: str = "full_report"
     lookback_hours: int = 18
@@ -48,10 +78,20 @@ class AppConfig:
     report_language: str = "zh-CN"
     database_path: str = "artifacts/fitech_agent.db"
     report_dir: str = "artifacts/reports"
+    skill_dirs: list[str] = field(default_factory=lambda: ["skills"])
     sources: list[SourceDefinition] = field(default_factory=list)
     audit: AuditSettings = field(default_factory=AuditSettings)
     model_route: ModelRoute = field(default_factory=ModelRoute)
+    agent_routes: dict[str, AgentRouteOverride] = field(default_factory=dict)
     run_defaults: RunDefaults = field(default_factory=RunDefaults)
+
+    def resolve_model_route(self, agent_id: str | None = None) -> ModelRoute:
+        if not agent_id:
+            return self.model_route
+        override = self.agent_routes.get(agent_id)
+        if override is None:
+            return self.model_route
+        return override.apply_to(self.model_route)
 
 
 def load_dotenv(path: str | Path = ".env") -> Path | None:
@@ -99,14 +139,20 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         sources.append(SourceDefinition(**source_payload))
     audit = AuditSettings(**payload.get("audit", {}))
     model_route = ModelRoute(**payload.get("model_route", {}))
+    agent_routes = {
+        agent_id: AgentRouteOverride(**route_payload)
+        for agent_id, route_payload in payload.get("agent_routes", {}).items()
+    }
     run_defaults = RunDefaults(**payload.get("run_defaults", {}))
     return AppConfig(
         timezone=payload.get("timezone", "Asia/Shanghai"),
         report_language=payload.get("report_language", "zh-CN"),
         database_path=payload.get("database_path", "artifacts/fitech_agent.db"),
         report_dir=payload.get("report_dir", "artifacts/reports"),
+        skill_dirs=list(payload.get("skill_dirs", ["skills"])),
         sources=sources,
         audit=audit,
         model_route=model_route,
+        agent_routes=agent_routes,
         run_defaults=run_defaults,
     )

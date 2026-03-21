@@ -24,6 +24,17 @@ class SQLiteStorage:
         "degraded_reasons",
         "config_json",
     }
+    REQUIRED_STAGE_COLUMNS = {
+        "id",
+        "run_id",
+        "stage",
+        "agent_id",
+        "substage",
+        "entity_type",
+        "entity_id",
+        "payload_json",
+        "created_at",
+    }
 
     def __init__(self, database_path: str) -> None:
         self.database_path = Path(database_path)
@@ -59,6 +70,8 @@ class SQLiteStorage:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id INTEGER NOT NULL,
                     stage TEXT NOT NULL,
+                    agent_id TEXT,
+                    substage TEXT,
                     entity_type TEXT NOT NULL,
                     entity_id TEXT,
                     payload_json TEXT NOT NULL,
@@ -91,6 +104,7 @@ class SQLiteStorage:
                 """
             )
             self._validate_runs_schema(conn)
+            self._validate_stage_schema(conn)
 
     def _validate_runs_schema(self, conn: sqlite3.Connection) -> None:
         columns = {
@@ -101,6 +115,18 @@ class SQLiteStorage:
         if missing:
             raise RuntimeError(
                 "Existing SQLite schema is incompatible with the manual-run engine. "
+                "Delete the database file and re-run init-db."
+            )
+
+    def _validate_stage_schema(self, conn: sqlite3.Connection) -> None:
+        columns = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(stage_payloads)").fetchall()
+        }
+        missing = self.REQUIRED_STAGE_COLUMNS - columns
+        if missing:
+            raise RuntimeError(
+                "Existing SQLite schema is incompatible with the layered agent trace. "
                 "Delete the database file and re-run init-db."
             )
 
@@ -171,21 +197,34 @@ class SQLiteStorage:
         payloads: Iterable[object],
         *,
         entity_ids: Iterable[str] | None = None,
+        agent_id: str | None = None,
+        substage: str | None = None,
     ) -> None:
         ids = list(entity_ids or [])
         rows = []
         created_at = utc_now_iso()
         for index, payload in enumerate(payloads):
             entity_id = ids[index] if index < len(ids) else None
-            rows.append((run_id, stage, entity_type, entity_id, to_json(payload), created_at))
+            rows.append(
+                (
+                    run_id,
+                    stage,
+                    agent_id,
+                    substage,
+                    entity_type,
+                    entity_id,
+                    to_json(payload),
+                    created_at,
+                )
+            )
         if not rows:
             return
         with self.connect() as conn:
             conn.executemany(
                 """
                 INSERT INTO stage_payloads (
-                    run_id, stage, entity_type, entity_id, payload_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    run_id, stage, agent_id, substage, entity_type, entity_id, payload_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -211,7 +250,7 @@ class SQLiteStorage:
         with self.connect() as conn:
             rows = conn.execute(
                 """
-                SELECT stage, payload_json
+                SELECT stage, COALESCE(agent_id, stage), COALESCE(substage, ''), payload_json
                 FROM stage_payloads
                 WHERE run_id = ? AND entity_type = 'market_impact_assessment'
                 ORDER BY id ASC
@@ -223,13 +262,13 @@ class SQLiteStorage:
         if not rows:
             return []
 
-        preferred_stage = "audit_evidence"
-        stages = [row[0] for row in rows]
+        preferred_stage = "audit"
+        stages = [row[1] for row in rows]
         selected_stage = preferred_stage if preferred_stage in stages else stages[-1]
         return [
             MarketImpactAssessment.from_dict(json.loads(payload_json))
-            for stage, payload_json in rows
-            if stage == selected_stage
+            for _stage, agent_id, _substage, payload_json in rows
+            if agent_id == selected_stage
         ]
 
     def record_outcomes(self, run_id: int, outcomes: list[ForecastOutcome]) -> None:

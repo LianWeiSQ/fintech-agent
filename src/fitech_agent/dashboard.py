@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter, OrderedDict
 from typing import Any
 
+from .agents.registry import CORE_AGENT_DESCRIPTORS
 from .config import AppConfig
 from .models import MarketImpactAssessment, ResearchRunRequest, ResearchRunResult
 from .pipeline import ResearchPipeline
@@ -53,13 +54,9 @@ BOARD_META: tuple[dict[str, Any], ...] = (
     },
 )
 
-WORKFLOW_STEPS: tuple[tuple[str, str], ...] = (
-    ("intent", "任务建模"),
-    ("collect", "新闻采集"),
-    ("extract", "事件抽取"),
-    ("map", "资产映射"),
-    ("integrate", "策略汇总"),
-    ("model", "模型问答"),
+WORKFLOW_STEPS: tuple[tuple[str, str], ...] = tuple(
+    (descriptor.agent_id, descriptor.display_name)
+    for descriptor in CORE_AGENT_DESCRIPTORS
 )
 
 
@@ -355,44 +352,68 @@ class DashboardService:
         ]
 
     def _build_workflow(self, result: ResearchRunResult, intent: str) -> list[dict[str, Any]]:
-        return [
+        substage_lookup = {
+            descriptor.agent_id: " -> ".join(descriptor.substages)
+            for descriptor in CORE_AGENT_DESCRIPTORS
+        }
+        workflow = [
             {
-                "id": "intent",
-                "label": "任务建模",
+                "id": "ingestion",
+                "label": "Ingestion",
                 "status": "completed",
-                "detail": intent or "未输入额外意图，按默认研究模板运行",
-            },
-            {
-                "id": "collect",
-                "label": "新闻采集",
-                "status": "completed",
-                "detail": f"抓取 {len(result.raw_items)} 条原始新闻，来源 {len(result.sources)} 个",
-            },
-            {
-                "id": "extract",
-                "label": "事件抽取",
-                "status": "completed",
-                "detail": f"形成 {len(result.events)} 个标准事件簇",
-            },
-            {
-                "id": "map",
-                "label": "资产映射",
-                "status": "completed",
-                "detail": f"输出 {len(result.assessments)} 条市场影响判断",
-            },
-            {
-                "id": "integrate",
-                "label": "策略汇总",
-                "status": "completed",
-                "detail": f"生成 {_mode_label(result.mode)} 与观察清单",
-            },
-            {
-                "id": "model",
-                "label": "模型问答",
-                "status": "completed",
-                "detail": "生成首轮摘要，并支持继续追问",
-            },
+                "detail": f"{len(result.raw_items)} raw items from {len(result.sources)} sources | {substage_lookup['ingestion']}",
+            }
         ]
+        collect_only = result.mode == "collect_only"
+        workflow.append(
+            {
+                "id": "event_intelligence",
+                "label": "Event Intelligence",
+                "status": "idle" if collect_only else "completed",
+                "detail": (
+                    "Skipped after collect-only run"
+                    if collect_only
+                    else f"{len(result.events)} canonical events | {substage_lookup['event_intelligence']}"
+                ),
+            }
+        )
+        workflow.append(
+            {
+                "id": "market_reasoning",
+                "label": "Market Reasoning",
+                "status": "idle" if collect_only else "completed",
+                "detail": (
+                    "Skipped after collect-only run"
+                    if collect_only
+                    else f"{len(result.assessments)} assessments | {substage_lookup['market_reasoning']}"
+                ),
+            }
+        )
+        workflow.append(
+            {
+                "id": "audit",
+                "label": "Audit",
+                "status": "idle" if collect_only else "completed",
+                "detail": (
+                    "Skipped after collect-only run"
+                    if collect_only
+                    else f"{len(result.audit_notes)} audit notes | {substage_lookup['audit']}"
+                ),
+            }
+        )
+        workflow.append(
+            {
+                "id": "report",
+                "label": "Report",
+                "status": "idle" if collect_only else "completed",
+                "detail": (
+                    "No report generated in collect-only mode"
+                    if collect_only
+                    else f"{_mode_label(result.mode)} output ready | {substage_lookup['report']}"
+                ),
+            }
+        )
+        return workflow
 
     def _build_domain_boards(self, result: ResearchRunResult) -> list[dict[str, Any]]:
         boards: list[dict[str, Any]] = []
@@ -521,7 +542,10 @@ class DashboardService:
         if self.pipeline.llm_client.available:
             prompt = self._opening_prompt(context)
             response = self.pipeline.llm_client.complete_text(
-                "你是一名服务交易台的中文策略助手。必须只基于给定上下文输出，不要编造。",
+                self.pipeline.compose_agent_system_prompt(
+                    "report",
+                    "You are a Chinese trading desk research assistant. Answer only from the provided context and do not invent facts.",
+                ),
                 prompt,
             )
             if response:
@@ -532,7 +556,10 @@ class DashboardService:
         if self.pipeline.llm_client.available:
             prompt = self._qa_prompt(question, context)
             response = self.pipeline.llm_client.complete_text(
-                "你是一名服务交易台的中文策略助手。先给结论，再给证据，最后给观察变量。上下文不足时请明确说明。",
+                self.pipeline.compose_agent_system_prompt(
+                    "market_reasoning",
+                    "You are a Chinese trading desk research assistant. Lead with the conclusion, then the evidence, then the watch variables. Say clearly when the context is insufficient.",
+                ),
                 prompt,
             )
             if response:

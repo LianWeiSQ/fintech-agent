@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from .config import load_config
+from .config import default_config_path, load_config, load_dotenv
 from .dashboard import DashboardService
 
 
@@ -101,7 +101,12 @@ def create_server(
     host: str = "127.0.0.1",
     port: int = 8010,
 ) -> ThreadingHTTPServer:
-    resolved = Path(config_path) if config_path is not None else None
+    load_dotenv()
+    resolved = (
+        Path(config_path)
+        if config_path is not None
+        else default_config_path()
+    )
     config = load_config(resolved if resolved and resolved.exists() else None)
     service = DashboardService(config)
     server = ThreadingHTTPServer((host, port), _build_handler(service))

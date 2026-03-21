@@ -29,4 +29,5 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "fitech_agent.web" = ["*.html", "*.css", "*.js"]
+"fitech_agent" = ["agents/*/skill.md"]
 

@@ -2,26 +2,21 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from .adapters import build_adapter
-from .agents.audit import EvidenceAuditAgent
-from .agents.collector import NewsCollectionAgent
-from .agents.credibility import CredibilityAgent
-from .agents.domain import DomainAnalysisAgent
-from .agents.extract import EventExtractionAgent
-from .agents.mapping import AssetMappingAgent
-from .agents.normalize import NormalizationAgent
-from .agents.report import ReportGenerationAgent
-from .agents.strategy import StrategyIntegrationAgent
+from .agents.audit.agent import AuditAgent
+from .agents.base import AgentRuntimeContext
+from .agents.event_intelligence.agent import EventIntelligenceAgent
+from .agents.ingestion.agent import IngestionAgent
+from .agents.market_reasoning.agent import MarketReasoningAgent
+from .agents.registry import CORE_AGENT_DESCRIPTORS, get_agent_descriptor
+from .agents.report.agent import ReportAgent
+from .agents.skill_loader import AgentSkillLoader
 from .config import AppConfig, SourceDefinition
 from .llm import LiteLLMClient
 from .models import (
     ALL_RESEARCH_SCOPES,
-    CanonicalNewsEvent,
-    EventAssetMap,
     IntegratedView,
     NewsWindow,
     ResearchRunRequest,
@@ -29,7 +24,6 @@ from .models import (
     RunMode,
 )
 from .orchestration import build_graph
-from .reporting import render_markdown, save_report_artifacts
 from .storage import SQLiteStorage
 from .utils import parse_iso_datetime, to_json
 
@@ -38,21 +32,6 @@ MODE_ALIASES = {
     "full-report": "full_report",
     "collect_only": "collect_only",
     "collect-only": "collect_only",
-}
-
-DIRECT_ASSET_SCOPES = {
-    "equity",
-    "commodities",
-    "precious_metals",
-    "crude_oil",
-    "usd",
-    "ust",
-}
-
-THEMATIC_SCOPES = {
-    "risk_sentiment",
-    "cn_policy",
-    "global_macro",
 }
 
 
@@ -66,15 +45,33 @@ class ResearchPipeline:
         self.storage = SQLiteStorage(config.database_path)
         self.storage.initialize()
         self.enabled_sources = [source for source in config.sources if source.enabled]
-        self.llm_client = LiteLLMClient(config.model_route)
-        self.normalizer = NormalizationAgent()
-        self.extractor = EventExtractionAgent(self.llm_client, config.report_language)
-        self.credibility = CredibilityAgent()
-        self.mapper = AssetMappingAgent()
-        self.domain_analyzer = DomainAnalysisAgent()
-        self.strategy = StrategyIntegrationAgent()
-        self.audit = EvidenceAuditAgent(config.audit)
-        self.reporter = ReportGenerationAgent()
+        self.skill_loader = AgentSkillLoader()
+        self.agent_descriptors = {
+            descriptor.agent_id: descriptor for descriptor in CORE_AGENT_DESCRIPTORS
+        }
+        self.agent_skills = {
+            agent_id: self.skill_loader.load(
+                agent_id,
+                descriptor.skill_path,
+                extra_roots=self.config.skill_dirs,
+            )
+            for agent_id, descriptor in self.agent_descriptors.items()
+        }
+        self.agent_clients = {
+            agent_id: LiteLLMClient(config.resolve_model_route(agent_id))
+            for agent_id in self.agent_descriptors
+        }
+        self.llm_client = LiteLLMClient(config.resolve_model_route())
+        for preferred_agent in ("report", "market_reasoning", "event_intelligence"):
+            candidate = self.agent_clients[preferred_agent]
+            if candidate.available:
+                self.llm_client = candidate
+                break
+        self.ingestion_agent = IngestionAgent()
+        self.event_intelligence_agent = EventIntelligenceAgent(config.report_language)
+        self.market_reasoning_agent = MarketReasoningAgent()
+        self.audit_agent = AuditAgent()
+        self.report_agent = ReportAgent()
         self.graph = build_graph(self)
 
     def _local_timezone(self) -> ZoneInfo:
@@ -97,7 +94,12 @@ class ResearchPipeline:
         return timestamp.astimezone(self._local_timezone()).replace(microsecond=0)
 
     def _to_utc_window_value(self, value: str) -> str:
-        return self._coerce_timestamp(value).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        return (
+            self._coerce_timestamp(value)
+            .astimezone(timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
 
     def _default_triggered_at(self) -> str:
         return datetime.now(self._local_timezone()).replace(second=0, microsecond=0).isoformat()
@@ -223,26 +225,46 @@ class ResearchPipeline:
             "audit_notes": [],
             "markdown_path": None,
             "pdf_path": None,
+            "collected_batch": None,
+            "event_intelligence_bundle": None,
+            "market_reasoning_bundle": None,
+            "audit_bundle": None,
+            "report_bundle": None,
         }
+
+    def _build_agent_context(self, agent_id: str, state: dict[str, Any]) -> AgentRuntimeContext:
+        descriptor = get_agent_descriptor(agent_id)
+        return AgentRuntimeContext(
+            run_id=state["run_id"],
+            mode=state["mode"],
+            triggered_at=state["triggered_at"],
+            window=state["window"],
+            scopes=list(state["scopes"]),
+            sources=list(state["sources"]),
+            config=self.config,
+            storage=self.storage,
+            llm_client=self.agent_clients[agent_id],
+            descriptor=descriptor,
+            skill=self.agent_skills[agent_id],
+        )
+
+    def compose_agent_system_prompt(self, agent_id: str, instruction: str) -> str:
+        skill = self.agent_skills.get(agent_id)
+        skill_context = skill.prompt_context() if skill is not None else ""
+        if not skill_context:
+            return instruction
+        return f"{instruction}\n\nAgent skill instructions:\n{skill_context}"
 
     def _execute_without_graph(self, state: dict[str, Any]) -> dict[str, Any]:
         state.update(self.start_run_node(state))
-        state.update(self.collect_news_node(state))
+        state.update(self.ingestion_node(state))
         if state["mode"] == "collect_only":
             state.update(self.finish_collect_only_node(state))
             return state
-        for node in (
-            self.normalize_news_node,
-            self.extract_events_node,
-            self.score_credibility_node,
-            self.map_assets_node,
-            self.filter_scope_node,
-            self.analyze_domains_node,
-            self.integrate_strategy_node,
-            self.audit_evidence_node,
-            self.generate_report_node,
-        ):
-            state.update(node(state))
+        state.update(self.event_intelligence_node(state))
+        state.update(self.market_reasoning_node(state))
+        state.update(self.audit_node(state))
+        state.update(self.report_node(state))
         return state
 
     def _result_from_state(self, state: dict[str, Any]) -> ResearchRunResult:
@@ -312,22 +334,22 @@ class ResearchPipeline:
         )
         return {"run_id": run_id}
 
-    def collect_news_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        selected_sources = self._select_sources(state["sources"])
-        collector = NewsCollectionAgent([build_adapter(source) for source in selected_sources])
-        raw_items, errors = collector.run(state["window"])
-        if not raw_items:
-            errors = list(dict.fromkeys(errors + ["no_news_collected"]))
-        self.storage.record_stage(
-            state["run_id"],
-            stage="collect_news",
-            entity_type="raw_news_item",
-            payloads=raw_items,
-            entity_ids=[item.id for item in raw_items],
+    def ingestion_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        context = self._build_agent_context("ingestion", state)
+        request = ResearchRunRequest(
+            mode=state["mode"],
+            triggered_at=state["triggered_at"],
+            window_start=state["window"].start,
+            window_end=state["window"].end,
+            scopes=list(state["scopes"]),
+            sources=list(state["sources"]),
         )
+        batch = self.ingestion_agent.run(context, request)
         return {
-            "raw_items": raw_items,
-            "degraded_reasons": list(dict.fromkeys(state["degraded_reasons"] + errors)),
+            "collected_batch": batch,
+            "raw_items": batch.raw_items,
+            "sources": list(batch.sources),
+            "degraded_reasons": list(dict.fromkeys(state["degraded_reasons"] + batch.degraded_reasons)),
         }
 
     def finish_collect_only_node(self, state: dict[str, Any]) -> dict[str, Any]:
@@ -343,229 +365,47 @@ class ResearchPipeline:
             "pdf_path": None,
         }
 
-    def normalize_news_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        clusters = self.normalizer.run(state["raw_items"])
-        self.storage.record_stage(
-            state["run_id"],
-            stage="normalize_news",
-            entity_type="news_cluster",
-            payloads=clusters,
-            entity_ids=[cluster.id for cluster in clusters],
-        )
-        return {"clusters": clusters}
-
-    def extract_events_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        events = self.extractor.run(state["clusters"])
-        self.storage.record_stage(
-            state["run_id"],
-            stage="extract_events",
-            entity_type="canonical_news_event",
-            payloads=events,
-            entity_ids=[event.id for event in events],
-        )
-        return {"events": events}
-
-    def score_credibility_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        scores = self.credibility.run(state["events"])
-        self.storage.record_stage(
-            state["run_id"],
-            stage="score_credibility",
-            entity_type="credibility_score",
-            payloads=scores,
-            entity_ids=[score.event_id for score in scores],
-        )
-        return {"credibility_scores": scores}
-
-    def map_assets_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        mappings = self.mapper.run(state["events"])
-        self.storage.record_stage(
-            state["run_id"],
-            stage="map_assets",
-            entity_type="event_asset_map",
-            payloads=mappings,
-            entity_ids=[mapping.event_id for mapping in mappings],
-        )
-        return {"mappings": mappings}
-
-    def _mapping_scopes(
-        self,
-        event: CanonicalNewsEvent,
-        mapping: EventAssetMap,
-    ) -> set[str]:
-        scopes: set[str] = set()
-        for asset in mapping.assets:
-            if asset.startswith("cn_equities/"):
-                scopes.add("equity")
-            if asset.startswith("cn_futures/"):
-                scopes.add("commodities")
-            if asset.startswith("precious_metals/"):
-                scopes.add("precious_metals")
-            if asset.startswith("energy/"):
-                scopes.add("crude_oil")
-            if asset == "macro/usd":
-                scopes.add("usd")
-            if asset == "macro/us_rates":
-                scopes.add("ust")
-            if asset == "macro/cny":
-                scopes.add("cn_policy")
-        for factor in mapping.macro_factors:
-            if factor in {"risk_appetite", "safe_haven_flow"}:
-                scopes.add("risk_sentiment")
-            if factor in {"policy_support", "china_growth"}:
-                scopes.add("cn_policy")
-            if factor in {"usd_liquidity", "global_yields", "inflation_expectations", "oil_supply"}:
-                scopes.add("global_macro")
-        if event.event_type == "china_policy":
-            scopes.add("cn_policy")
-        if event.event_type in {"fomc", "us_cpi", "us_nonfarm", "opec", "energy_supply", "geopolitics", "macro_growth"}:
-            scopes.add("global_macro")
-        return scopes
-
-    def _asset_scopes(self, asset: str) -> set[str]:
-        scopes: set[str] = set()
-        if asset.startswith("cn_equities/"):
-            scopes.add("equity")
-        if asset.startswith("cn_futures/"):
-            scopes.add("commodities")
-        if asset.startswith("precious_metals/"):
-            scopes.add("precious_metals")
-        if asset.startswith("energy/"):
-            scopes.add("crude_oil")
-        if asset == "macro/usd":
-            scopes.add("usd")
-        if asset == "macro/us_rates":
-            scopes.add("ust")
-        if asset == "macro/cny":
-            scopes.add("cn_policy")
-        return scopes
-
-    def _sector_scopes(self, sector: str) -> set[str]:
-        if sector.startswith("cn_equities/"):
-            return {"equity"}
-        return set()
-
-    def filter_scope_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        selected_scopes = set(state["scopes"])
-        if selected_scopes == set(ALL_RESEARCH_SCOPES):
-            return {}
-
-        mapping_lookup = {mapping.event_id: mapping for mapping in state["mappings"]}
-        filtered_events = []
-        filtered_mappings = []
-        for event in state["events"]:
-            mapping = mapping_lookup.get(event.id)
-            if mapping is None:
-                continue
-            event_scopes = self._mapping_scopes(event, mapping)
-            if not (event_scopes & selected_scopes):
-                continue
-
-            thematic_match = bool(event_scopes & selected_scopes & THEMATIC_SCOPES)
-            if thematic_match:
-                filtered_events.append(event)
-                filtered_mappings.append(mapping)
-                continue
-
-            filtered_assets = [
-                asset
-                for asset in mapping.assets
-                if self._asset_scopes(asset) & selected_scopes & DIRECT_ASSET_SCOPES
-            ]
-            if not filtered_assets:
-                continue
-
-            filtered_events.append(event)
-            filtered_mappings.append(
-                EventAssetMap(
-                    event_id=mapping.event_id,
-                    assets=filtered_assets,
-                    sectors=[
-                        sector
-                        for sector in mapping.sectors
-                        if self._sector_scopes(sector) & selected_scopes
-                    ],
-                    macro_factors=list(mapping.macro_factors),
-                    rationale=list(mapping.rationale),
-                )
-            )
+    def event_intelligence_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        context = self._build_agent_context("event_intelligence", state)
+        bundle = self.event_intelligence_agent.run(context, state["collected_batch"])
         return {
-            "events": filtered_events,
-            "mappings": filtered_mappings,
+            "event_intelligence_bundle": bundle,
+            "clusters": bundle.clusters,
+            "events": bundle.events,
+            "credibility_scores": bundle.credibility_scores,
         }
 
-    def analyze_domains_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        assessments = self.domain_analyzer.run(
-            state["events"],
-            state["credibility_scores"],
-            state["mappings"],
-        )
-        self.storage.record_stage(
-            state["run_id"],
-            stage="analyze_domains",
-            entity_type="market_impact_assessment",
-            payloads=assessments,
-            entity_ids=[assessment.id for assessment in assessments],
-        )
-        return {"assessments": assessments}
-
-    def integrate_strategy_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        integrated_view = self.strategy.run(state["assessments"])
-        self.storage.record_stage(
-            state["run_id"],
-            stage="integrate_strategy",
-            entity_type="integrated_view",
-            payloads=[integrated_view],
-            entity_ids=["integrated_view"],
-        )
-        return {"integrated_view": integrated_view}
-
-    def audit_evidence_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        assessments, audit_notes = self.audit.run(state["assessments"], state["credibility_scores"])
-        self.storage.record_stage(
-            state["run_id"],
-            stage="audit_evidence",
-            entity_type="market_impact_assessment",
-            payloads=assessments,
-            entity_ids=[assessment.id for assessment in assessments],
-        )
+    def market_reasoning_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        context = self._build_agent_context("market_reasoning", state)
+        bundle = self.market_reasoning_agent.run(context, state["event_intelligence_bundle"])
         return {
-            "assessments": assessments,
-            "audit_notes": audit_notes,
-            "degraded_reasons": list(dict.fromkeys(state["degraded_reasons"] + audit_notes)),
+            "market_reasoning_bundle": bundle,
+            "events": bundle.intelligence.events,
+            "credibility_scores": bundle.intelligence.credibility_scores,
+            "mappings": bundle.mappings,
+            "assessments": bundle.assessments,
+            "integrated_view": bundle.integrated_view,
         }
 
-    def generate_report_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        report = self.reporter.run(
-            run_id=state["run_id"],
-            triggered_at=state["triggered_at"],
-            mode=state["mode"],
-            window=state["window"],
-            scopes=state["scopes"],
-            sources=state["sources"],
-            events=state["events"],
-            assessments=state["assessments"],
-            integrated_view=state["integrated_view"],
-            degraded_reasons=state["degraded_reasons"],
-        )
-        report.markdown_body = render_markdown(report)
-        markdown_path, pdf_path, render_warnings = save_report_artifacts(report, self.config.report_dir)
-        if render_warnings:
-            report.degraded = True
-            report.degraded_reasons = list(dict.fromkeys(report.degraded_reasons + render_warnings))
-            report.markdown_body = render_markdown(report)
-            Path(markdown_path).write_text(report.markdown_body, encoding="utf-8")
-        self.storage.save_report(state["run_id"], report, markdown_path, pdf_path)
-        self.storage.finalize_run(
-            state["run_id"],
-            status="completed",
-            degraded=report.degraded,
-            degraded_reasons=report.degraded_reasons,
-        )
+    def audit_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        context = self._build_agent_context("audit", state)
+        bundle = self.audit_agent.run(context, state["market_reasoning_bundle"])
         return {
-            "report": report,
-            "markdown_path": markdown_path,
-            "pdf_path": pdf_path,
-            "degraded_reasons": report.degraded_reasons,
+            "audit_bundle": bundle,
+            "assessments": bundle.assessments,
+            "audit_notes": bundle.audit_notes,
+            "degraded_reasons": bundle.degraded_reasons,
+        }
+
+    def report_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        context = self._build_agent_context("report", state)
+        bundle = self.report_agent.run(context, state["audit_bundle"])
+        return {
+            "report_bundle": bundle,
+            "report": bundle.report,
+            "markdown_path": bundle.markdown_path,
+            "pdf_path": bundle.pdf_path,
+            "degraded_reasons": list(bundle.report.degraded_reasons if bundle.report else state["degraded_reasons"]),
         }
 
 
