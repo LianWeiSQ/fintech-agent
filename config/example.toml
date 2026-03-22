@@ -29,26 +29,236 @@ api_key_env = ""
 mode = "full_report"
 lookback_hours = 18
 
+# Source policy notes:
+# - L1/L2/L3/L4 follow the ingestion confidence taxonomy.
+# - X and Reuters routes below use RSSHub. Public rsshub.app is real but rate-limited.
+#   Replace rsshub.app with your own RSSHub base for production.
+# - Weibo is intentionally excluded.
+
+# L1: official / regulatory anchors
 [[sources]]
-name = "bootstrap_sample"
-kind = "file"
-endpoint = "examples/sample_news.json"
-language = "mixed"
+name = "FedPressAll"
+kind = "rss"
+endpoint = "https://www.federalreserve.gov/feeds/press_all.xml"
+language = "en"
+tier = "official"
+enabled = true
+tags = ["official", "macro", "usd", "ust", "rates"]
+metadata.link_allowlist_domains = ["federalreserve.gov"]
+metadata.title_allowlist_keywords = ["fomc", "rate", "policy", "liquidity", "repo", "swap", "treasury", "yield", "inflation", "dollar"]
+
+[[sources]]
+name = "FedMonetaryPolicy"
+kind = "rss"
+endpoint = "https://www.federalreserve.gov/feeds/press_monetary.xml"
+language = "en"
+tier = "official"
+enabled = true
+tags = ["official", "macro", "usd", "ust", "rates"]
+metadata.link_allowlist_domains = ["federalreserve.gov"]
+
+[[sources]]
+name = "FederalReserveX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/federalreserve"
+language = "en"
+tier = "official"
+enabled = true
+tags = ["official", "x", "macro", "usd", "ust", "rates"]
+metadata.title_allowlist_keywords = ["fomc", "rate", "policy", "liquidity", "repo", "swap", "treasury", "yield", "inflation", "dollar"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+[[sources]]
+name = "PBOCNews"
+kind = "rss"
+endpoint = "https://www.pbc.gov.cn/goutongjiaoliu/113456/2986536/index.html"
+language = "zh"
+tier = "official"
+enabled = true
+tags = ["official", "china", "policy", "rates", "usd"]
+metadata.link_allowlist_domains = ["pbc.gov.cn"]
+metadata.title_allowlist_keywords = ["货币政策", "流动性", "利率", "逆回购", "mlf", "lpr", "人民币", "汇率", "外汇", "债券", "国债", "经济", "通胀", "cpi", "ppi", "政策", "再贷款"]
+
+[[sources]]
+name = "NBSReleases"
+kind = "rss"
+endpoint = "https://www.stats.gov.cn/sj/zxfb/rss.xml"
+language = "zh"
+tier = "official"
+enabled = true
+tags = ["official", "china", "macro", "data"]
+metadata.link_allowlist_domains = ["stats.gov.cn"]
+metadata.title_allowlist_keywords = ["gdp", "cpi", "ppi", "pmi", "工业", "制造业", "消费", "社零", "固定资产", "出口", "进口", "就业", "房地产", "价格"]
+
+[[sources]]
+name = "NBSInterpretation"
+kind = "rss"
+endpoint = "https://www.stats.gov.cn/sj/sjjd/rss.xml"
+language = "zh"
+tier = "official"
+enabled = true
+tags = ["official", "china", "macro", "data"]
+metadata.link_allowlist_domains = ["stats.gov.cn"]
+metadata.title_allowlist_keywords = ["gdp", "cpi", "ppi", "pmi", "工业", "制造业", "消费", "社零", "固定资产", "出口", "进口", "就业", "房地产", "价格"]
+
+[[sources]]
+name = "CMEPressReleases"
+kind = "rss"
+endpoint = "https://investor.cmegroup.com/rss/news-releases.xml"
+language = "en"
+tier = "official"
+enabled = true
+tags = ["official", "commodities", "precious_metals", "crude_oil", "usd", "ust"]
+metadata.link_allowlist_domains = ["cmegroup.com", "cmegroup.mediaroom.com"]
+metadata.title_allowlist_keywords = ["gold", "silver", "oil", "crude", "treasury", "yield", "rate", "margin", "futures", "options", "position", "comex", "energy"]
+
+# L2: global top wires
+[[sources]]
+name = "ReutersMarkets"
+kind = "rss"
+endpoint = "https://rsshub.app/reuters/markets"
+language = "en"
 tier = "tier1_media"
 enabled = true
-tags = ["bootstrap", "macro"]
+tags = ["wire", "macro", "equity", "commodities", "usd", "ust", "china"]
+metadata.link_allowlist_domains = ["reuters.com"]
+metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "oil", "gold", "silver", "stocks", "shares", "crude", "inflation", "tariff", "opec", "sanction"]
+metadata.title_blocklist_keywords = ["podcast", "pictures", "lifestyle", "sports"]
 
-# Trusted source names currently assumed by the V1 source policy:
-#   Reuters, Bloomberg, ???, ?????, ??????,
-#   ?????, ?????, OPEC, Fed, CME
-#
-# Add validated RSS / premium connectors by extending [[sources]].
-# Example:
-# [[sources]]
-# name = "Reuters"
-# kind = "rss"
-# endpoint = "https://example.com/rss.xml"
-# language = "en"
-# tier = "tier1_media"
-# enabled = true
-# tags = ["macro", "global"]
+[[sources]]
+name = "ReutersBusinessFinance"
+kind = "rss"
+endpoint = "https://rsshub.app/reuters/business/finance"
+language = "en"
+tier = "tier1_media"
+enabled = true
+tags = ["wire", "macro", "finance", "usd", "ust", "china"]
+metadata.link_allowlist_domains = ["reuters.com"]
+metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "bank", "liquidity", "inflation", "credit", "bond", "policy"]
+metadata.title_blocklist_keywords = ["podcast", "lifestyle", "sports"]
+
+[[sources]]
+name = "ReutersWorldChina"
+kind = "rss"
+endpoint = "https://rsshub.app/reuters/world/china"
+language = "en"
+tier = "tier1_media"
+enabled = true
+tags = ["wire", "china", "policy", "macro", "equity"]
+metadata.link_allowlist_domains = ["reuters.com"]
+metadata.title_allowlist_keywords = ["china", "yuan", "pboc", "stimulus", "property", "exports", "imports", "tariff", "trade", "cpi", "ppi", "policy"]
+
+[[sources]]
+name = "ReutersMarketsX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/ReutersMarkets"
+language = "en"
+tier = "tier1_media"
+enabled = true
+tags = ["wire", "x", "macro", "equity", "commodities", "usd", "ust"]
+metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "oil", "gold", "silver", "stocks", "shares", "crude", "inflation"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+[[sources]]
+name = "BloombergMarketsX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/markets"
+language = "en"
+tier = "tier1_media"
+enabled = true
+tags = ["wire", "x", "macro", "equity", "commodities", "usd", "ust"]
+metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "oil", "gold", "silver", "stocks", "shares", "crude", "inflation", "opec"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+# L3: professional financial media and high-signal beat reporters
+[[sources]]
+name = "WSJMarketsX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/WSJmarkets"
+language = "en"
+tier = "tier2_media"
+enabled = true
+tags = ["media", "x", "macro", "equity", "usd", "ust"]
+metadata.title_allowlist_keywords = ["china", "fed", "yield", "treasury", "dollar", "oil", "gold", "stocks", "inflation", "rates"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+[[sources]]
+name = "NickTimiraosX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/NickTimiraos"
+language = "en"
+tier = "tier2_media"
+enabled = true
+tags = ["media", "x", "macro", "usd", "ust", "rates"]
+metadata.title_allowlist_keywords = ["fed", "fomc", "powell", "treasury", "yield", "rate", "inflation", "labor", "dollar"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+[[sources]]
+name = "CaixinGlobalX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/caixin"
+language = "en"
+tier = "tier2_media"
+enabled = true
+tags = ["media", "x", "china", "policy", "macro", "equity"]
+metadata.title_allowlist_keywords = ["china", "yuan", "pboc", "stimulus", "property", "exports", "imports", "inflation", "cpi", "ppi", "policy", "stocks"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+[[sources]]
+name = "YicaiChinaX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/YicaiGlobal"
+language = "en"
+tier = "tier2_media"
+enabled = true
+tags = ["media", "x", "china", "policy", "macro", "equity"]
+metadata.title_allowlist_keywords = ["china", "yuan", "pboc", "stimulus", "property", "exports", "imports", "inflation", "cpi", "ppi", "policy", "stocks"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+[[sources]]
+name = "JavierBlasX"
+kind = "rss"
+endpoint = "https://rsshub.app/twitter/user/JavierBlas"
+language = "en"
+tier = "tier2_media"
+enabled = true
+tags = ["media", "x", "commodities", "precious_metals", "crude_oil", "macro"]
+metadata.title_allowlist_keywords = ["oil", "crude", "opec", "energy", "gas", "gold", "silver", "commodity", "commodities", "sanction"]
+metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
+
+# L4: curated social / community feeds
+[[sources]]
+name = "RedditEconomicsChinaMacro"
+kind = "rss"
+endpoint = "https://old.reddit.com/r/Economics/search.rss?q=china%20OR%20pboc%20OR%20yuan%20OR%20stimulus%20OR%20property%20OR%20exports%20OR%20imports%20OR%20cpi%20OR%20ppi&restrict_sr=on&sort=new&t=week"
+language = "en"
+tier = "social"
+enabled = true
+tags = ["social", "reddit", "china", "policy", "macro"]
+metadata.title_allowlist_keywords = ["china", "pboc", "yuan", "stimulus", "property", "exports", "imports", "cpi", "ppi"]
+metadata.title_blocklist_keywords = ["homework", "meme", "shitpost", "wallstreetbets", "career", "class", "crypto"]
+metadata.summary_href_allowlist_domains = ["federalreserve.gov", "pbc.gov.cn", "stats.gov.cn", "reuters.com", "bloomberg.com", "wsj.com", "caixinglobal.com", "cmegroup.com", "home.treasury.gov", "newyorkfed.org"]
+
+[[sources]]
+name = "RedditEconomicsRatesMacro"
+kind = "rss"
+endpoint = "https://old.reddit.com/r/Economics/search.rss?q=fed%20OR%20fomc%20OR%20treasury%20OR%20yield%20OR%20inflation%20OR%20dollar&restrict_sr=on&sort=new&t=week"
+language = "en"
+tier = "social"
+enabled = true
+tags = ["social", "reddit", "usd", "ust", "rates", "macro"]
+metadata.title_allowlist_keywords = ["fed", "fomc", "treasury", "yield", "inflation", "dollar"]
+metadata.title_blocklist_keywords = ["homework", "meme", "shitpost", "wallstreetbets", "career", "class", "crypto"]
+metadata.summary_href_allowlist_domains = ["federalreserve.gov", "reuters.com", "bloomberg.com", "wsj.com", "home.treasury.gov", "newyorkfed.org"]
+
+[[sources]]
+name = "RedditSecurityAnalysisCommodities"
+kind = "rss"
+endpoint = "https://old.reddit.com/r/SecurityAnalysis/search.rss?q=oil%20OR%20crude%20OR%20opec%20OR%20gold%20OR%20silver%20OR%20commodity%20OR%20commodities&restrict_sr=on&sort=new&t=month"
+language = "en"
+tier = "social"
+enabled = true
+tags = ["social", "reddit", "commodities", "precious_metals", "crude_oil"]
+metadata.title_allowlist_keywords = ["oil", "crude", "opec", "gold", "silver", "commodity", "commodities"]
+metadata.title_blocklist_keywords = ["homework", "meme", "shitpost", "wallstreetbets", "career", "class", "crypto"]
+metadata.summary_href_allowlist_domains = ["reuters.com", "bloomberg.com", "wsj.com", "cmegroup.com", "opec.org", "eia.gov"]

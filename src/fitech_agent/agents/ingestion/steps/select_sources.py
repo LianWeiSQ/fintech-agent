@@ -1,6 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from ....config import SourceDefinition
+
+
+def _source_sort_key(source: SourceDefinition) -> tuple[int, float, str]:
+    return (source.priority, source.trust_score, source.name.lower())
 
 
 def select_sources(
@@ -8,7 +12,7 @@ def select_sources(
     requested_sources: list[str] | None,
 ) -> list[SourceDefinition]:
     if not requested_sources:
-        return list(enabled_sources)
+        return sorted(enabled_sources, key=_source_sort_key, reverse=True)
 
     requested_lookup = {
         source_name.strip().lower(): source_name.strip()
@@ -27,8 +31,9 @@ def select_sources(
     if missing:
         raise ValueError(f"Unknown source: {', '.join(sorted(missing))}")
 
-    return [
+    selected = [
         source
         for source in enabled_sources
         if source.name.strip().lower() in requested_lookup
     ]
+    return sorted(selected, key=_source_sort_key, reverse=True)

@@ -551,6 +551,133 @@ textarea {
   font-size: 0.95rem;
 }
 
+.source-mix-grid,
+.source-levels,
+.social-radar,
+.source-catalog {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.source-mix-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.source-mix-card,
+.source-level-board,
+.social-panel,
+.catalog-level,
+.source-entry,
+.social-entry,
+.social-post {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(119, 163, 208, 0.14);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.source-mix-top,
+.source-level-head,
+.source-entry-top,
+.social-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.source-mix-count {
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: #2d74b7;
+}
+
+.source-mix-meta,
+.source-mix-desc,
+.source-level-meta,
+.source-entry-meta,
+.source-entry-title,
+.social-entry-meta,
+.social-entry-title {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.source-mix-meta,
+.source-entry-meta,
+.social-entry-meta {
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
+.source-mix-desc,
+.source-entry-title,
+.social-entry-title {
+  margin-top: 8px;
+  font-size: 0.94rem;
+}
+
+.source-level-stats,
+.source-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(119, 163, 208, 0.16);
+  background: rgba(105, 174, 232, 0.1);
+  color: #3777b5;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.source-entry-list,
+.catalog-chip-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.social-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.social-column {
+  display: grid;
+  gap: 10px;
+}
+
+.social-column-title {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6a88aa;
+}
+
+.catalog-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.catalog-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(119, 163, 208, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
+}
+
+.catalog-chip em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .empty-state {
   padding: 16px;
   border-radius: 18px;
@@ -590,7 +717,9 @@ textarea {
   }
 
   .control-row,
-  .hero-card {
+  .hero-card,
+  .source-mix-grid,
+  .social-columns {
     grid-template-columns: 1fr;
   }
 

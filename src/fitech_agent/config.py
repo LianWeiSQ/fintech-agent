@@ -4,8 +4,9 @@ import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
-from .source_catalog import infer_source_tier
+from .source_catalog import resolve_source_profile
 
 
 @dataclass(slots=True)
@@ -17,7 +18,28 @@ class SourceDefinition:
     tier: str = "unknown"
     enabled: bool = True
     tags: list[str] = field(default_factory=list)
-    metadata: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    confidence_level: str = "L4"
+    confidence_category: str = "unclassified"
+    trust_score: float = 0.5
+    priority: int = 50
+
+    def __post_init__(self) -> None:
+        profile = resolve_source_profile(
+            self.name,
+            self.tier,
+            endpoint=self.endpoint,
+            tags=self.tags,
+        )
+        object.__setattr__(self, "tier", profile.tier)
+        object.__setattr__(self, "confidence_level", profile.level)
+        object.__setattr__(self, "confidence_category", profile.category)
+        object.__setattr__(self, "trust_score", profile.trust_score)
+        object.__setattr__(self, "priority", profile.priority)
+
+        merged_metadata = dict(self.metadata)
+        merged_metadata.update(profile.metadata())
+        object.__setattr__(self, "metadata", merged_metadata)
 
 
 @dataclass(slots=True)
@@ -129,14 +151,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     config_path = Path(path)
     payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    sources = []
-    for item in payload.get("sources", []):
-        source_payload = dict(item)
-        source_payload["tier"] = infer_source_tier(
-            source_payload.get("name", ""),
-            source_payload.get("tier", ""),
-        )
-        sources.append(SourceDefinition(**source_payload))
+    sources = [SourceDefinition(**dict(item)) for item in payload.get("sources", [])]
     audit = AuditSettings(**payload.get("audit", {}))
     model_route = ModelRoute(**payload.get("model_route", {}))
     agent_routes = {

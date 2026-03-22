@@ -1,0 +1,142 @@
+version = 1
+generated_on = "2026-03-21"
+install_root = "skills"
+install_wrapper = "scripts/clawhub.ps1"
+default_install_command = 'powershell -ExecutionPolicy Bypass -File .\scripts\clawhub.ps1 --no-input install <slug>'
+
+[agents.ingestion]
+display_name = "Ingestion"
+skills = ["rss-aggregator", "parallel-extract", "deep-search"]
+
+[agents.event_intelligence]
+display_name = "Event Intelligence"
+skills = ["get-tldr", "parallel-extract", "verify-claims", "fact-check"]
+
+[agents.market_reasoning]
+display_name = "Market Reasoning"
+skills = ["market-research", "market-research-agent", "stock-market-pro"]
+
+[agents.audit]
+display_name = "Audit"
+skills = ["verify-claims", "fact-check", "fact-checker"]
+
+[agents.report]
+display_name = "Report"
+skills = ["ub2-markdown-report-generator", "md-to-pdf-cjk", "market-research-reports"]
+
+[packs.rss-aggregator]
+status = "installed"
+local_path = "skills/rss-aggregator"
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "RSS collection, source merging, raw dedupe"
+prerequisites = []
+notes = "Good fit for allowlist-driven source selection and repeatable raw-news capture."
+
+[packs.parallel-extract]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "URL/PDF extraction for JS-heavy pages"
+prerequisites = ["parallel-cli", "PARALLEL_API_KEY"]
+notes = "Best used after source discovery when a page needs clean markdown extraction."
+
+[packs.deep-search]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Fresh source discovery and multi-source search"
+prerequisites = ["Perplexity or the pack's configured backend"]
+notes = "Use for discovering URLs and recent sources before invoking extractors."
+
+[packs.get-tldr]
+status = "installed"
+local_path = "skills/get-tldr"
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Deterministic link summarization"
+prerequisites = ["GET_TLDR_API_KEY or ~/.config/get-tldr/config.json"]
+notes = "Useful for fast URL condensation when full extraction is unnecessary."
+
+[packs.verify-claims]
+status = "installed"
+local_path = "skills/verify-claims"
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Cross-checking claims against professional fact-checkers"
+prerequisites = []
+notes = "Strong fit for claim validation, credibility scoring, and downgrade reasoning."
+
+[packs.fact-check]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Structured factual verdicts with source hierarchy"
+prerequisites = []
+notes = "Useful when a claim needs a direct verdict instead of a narrative summary."
+
+[packs.market-research]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Market sizing, segmentation, evidence grading"
+prerequisites = []
+notes = "Maps well to cross-asset thesis building and confidence labeling."
+
+[packs.market-research-agent]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Competitor landscape and opportunity framing"
+prerequisites = []
+notes = "Useful for structured market-overview and scenario-building steps."
+
+[packs.stock-market-pro]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Quotes, fundamentals, charts, technical overlays"
+prerequisites = ["yfinance-compatible environment"]
+notes = "Use as an optional market-context helper, not as the sole China-market truth source."
+
+[packs.fact-checker]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Verify markdown-draft claims against source data"
+prerequisites = ["Python runtime inside the pack"]
+notes = "Best fit for pre-publish report audit and appendix verification."
+
+[packs.ub2-markdown-report-generator]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Structured markdown report generation"
+prerequisites = []
+notes = "Matches report composition, table generation, and section layout."
+
+[packs.md-to-pdf-cjk]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Markdown to PDF with CJK-safe rendering"
+prerequisites = ["pandoc", "xelatex", "CJK fonts"]
+notes = "Useful for Chinese brief export when PDF rendering must be stable."
+
+[packs.market-research-reports]
+status = "selected"
+local_path = ""
+source = "clawhub"
+doc = "https://clawhub.ai"
+focus = "Long-form consulting-style report framing"
+prerequisites = ["LaTeX toolchain if using its full pipeline"]
+notes = "Use selectively for appendix depth and framework scaffolding, not the default brief length."

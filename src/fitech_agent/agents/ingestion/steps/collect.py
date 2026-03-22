@@ -1,10 +1,16 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ....adapters import SourceAdapter
 from ....models import NewsWindow, RawNewsItem
 from ....utils import utc_now_iso
+
+
+def _item_sort_key(item: RawNewsItem) -> tuple[float, float, str]:
+    priority = float(item.metadata.get("source_priority", 0) or 0)
+    trust_score = float(item.metadata.get("source_trust_score", 0.0) or 0.0)
+    return (priority, trust_score, item.published_at)
 
 
 class NewsCollectionAgent:
@@ -31,4 +37,4 @@ class NewsCollectionAgent:
                 except Exception as exc:
                     errors.append(f"source_failed:{source_name}:{exc}")
 
-        return items, errors
+        return sorted(items, key=_item_sort_key, reverse=True), errors

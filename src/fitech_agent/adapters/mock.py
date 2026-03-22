@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from ..models import NewsWindow, RawNewsItem
 from ..utils import stable_id
-from .base import SourceAdapter
+from .base import SourceAdapter, build_source_metadata
 
 
 class MockSourceAdapter(SourceAdapter):
@@ -27,7 +27,6 @@ class MockSourceAdapter(SourceAdapter):
                 published_at=window.end,
                 collected_at=collected_at,
                 tags=list(self.definition.tags),
-                metadata={"mock": True},
+                metadata=build_source_metadata(self.definition, {"mock": True}),
             )
         ]
-

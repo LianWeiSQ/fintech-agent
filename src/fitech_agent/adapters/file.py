@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
 
 from ..models import NewsWindow, RawNewsItem
 from ..utils import parse_iso_datetime, stable_id
-from .base import SourceAdapter
+from .base import SourceAdapter, build_source_metadata
 
 
 class FileSourceAdapter(SourceAdapter):
@@ -41,7 +41,10 @@ class FileSourceAdapter(SourceAdapter):
                     published_at=published_at,
                     collected_at=collected_at,
                     tags=item.get("tags", list(self.definition.tags)),
-                    metadata=item.get("metadata", {}),
+                    metadata=build_source_metadata(
+                        self.definition,
+                        item.get("metadata", {}),
+                    ),
                 )
             )
         return items

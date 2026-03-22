@@ -18,6 +18,7 @@ class EvidenceAuditAgent:
             score = score_lookup.get(assessment.event_id)
             publishable = (
                 score is not None
+                and score.verified
                 and score.score >= self.settings.min_verified_score
                 and assessment.confidence >= self.settings.min_publish_confidence
                 and bool(assessment.key_evidence)
@@ -25,8 +26,10 @@ class EvidenceAuditAgent:
             status = "ready" if publishable else "watch_only"
             if not publishable:
                 notes.append(
-                    f"audit_downgrade:{assessment.id}:score={score.score if score else 0.0}:confidence={assessment.confidence}"
+                    "audit_downgrade:"
+                    f"{assessment.id}:verified={score.verified if score else False}:"
+                    f"score={score.score if score else 0.0}:"
+                    f"confidence={assessment.confidence}"
                 )
             audited.append(replace(assessment, status=status))
         return audited, notes
-

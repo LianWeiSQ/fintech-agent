@@ -40,6 +40,10 @@ function cacheElements() {
     focusCards: document.getElementById("focusCards"),
     watchlist: document.getElementById("watchlist"),
     runMeta: document.getElementById("runMeta"),
+    sourceMixCards: document.getElementById("sourceMixCards"),
+    sourceLevelBoards: document.getElementById("sourceLevelBoards"),
+    socialRadar: document.getElementById("socialRadar"),
+    sourceCatalog: document.getElementById("sourceCatalog"),
   });
 }
 
@@ -67,6 +71,9 @@ async function initialize() {
   renderScopes(bootstrap.scopes || []);
   renderWorkflow(bootstrap.workflow || []);
   renderEmptyFocus();
+  renderSourceMix(bootstrap.sourceMix || {});
+  renderSocialRadar((bootstrap.sourceMix && bootstrap.sourceMix.channels) || []);
+  renderSourceCatalog(bootstrap.sourceCatalog || {});
 
   addMessage("system", "先描述你的研究问题，再点击开始分析。系统会把执行过程和首轮模型摘要展示在这里。", "提示");
   renderChat();
@@ -205,6 +212,9 @@ function renderRunResult(result) {
   renderWatchlist(result.watchlist || []);
   renderRunMeta(result.meta || {});
   renderWorkflow(result.workflow || []);
+  renderSourceMix(result.sourceMix || {});
+  renderSocialRadar((result.sourceMix && result.sourceMix.channels) || []);
+  renderSourceCatalog(result.sourceCatalog || state.bootstrap?.sourceCatalog || {});
   els.runWindow.textContent = formatWindow(result.meta?.window);
   els.pageSubtitle.textContent = `已完成第 ${result.meta?.runId} 次研究运行，右侧只保留关键关注窗口，左侧可以继续追问模型。`;
   setRunBadge(result.meta?.modeLabel || "已完成");
@@ -288,6 +298,135 @@ function renderRunMeta(meta) {
       <span>${escapeHtml(row.value || "--")}</span>
     `;
     els.runMeta.appendChild(node);
+  });
+}
+
+function renderSourceMix(sourceMix) {
+  const levels = sourceMix.levels || [];
+  if (!levels.length) {
+    els.sourceMixCards.innerHTML = '<div class="empty-state">暂无 source mix。</div>';
+    els.sourceLevelBoards.innerHTML = '<div class="empty-state">暂无分层来源。</div>';
+    return;
+  }
+
+  els.sourceMixCards.innerHTML = "";
+  levels.forEach((level) => {
+    const card = document.createElement("article");
+    card.className = "source-mix-card";
+    card.innerHTML = `
+      <div class="source-mix-top">
+        <strong>${escapeHtml(level.level || "")}</strong>
+        <span>${escapeHtml(level.label || "")}</span>
+      </div>
+      <div class="source-mix-count">${escapeHtml(String(level.itemCount ?? 0))}</div>
+      <div class="source-mix-meta">消息 ${escapeHtml(String(level.itemCount ?? 0))} 条 · 来源 ${escapeHtml(String(level.sourceCount ?? 0))} 个 · 占比 ${escapeHtml(String(level.sharePct ?? 0))}%</div>
+      <div class="source-mix-desc">${escapeHtml(level.description || "")}</div>
+    `;
+    els.sourceMixCards.appendChild(card);
+  });
+
+  els.sourceLevelBoards.innerHTML = "";
+  levels.forEach((level) => {
+    const section = document.createElement("section");
+    section.className = "source-level-board";
+    const rows = (level.sources || []).map((source) => `
+      <div class="source-entry">
+        <div class="source-entry-top">
+          <strong>${escapeHtml(source.name || "")}</strong>
+          <span class="source-pill">${escapeHtml(source.channelLabel || source.channel || "")}</span>
+        </div>
+        <div class="source-entry-meta">${escapeHtml(source.confidenceLabel || level.label || "")} · Trust ${escapeHtml(String(source.trustScore ?? "--"))}% · ${escapeHtml(String(source.itemCount ?? 0))} 条</div>
+        <div class="source-entry-title">${escapeHtml(source.latestTitle || "当前窗口暂无命中，保留为配置来源。").replace(/\n/g, "<br>")}</div>
+      </div>
+    `).join("");
+    section.innerHTML = `
+      <div class="source-level-head">
+        <div>
+          <strong>${escapeHtml(level.label || "")}</strong>
+          <div class="source-level-meta">${escapeHtml(level.description || "")}</div>
+        </div>
+        <span class="source-level-stats">${escapeHtml(String(level.itemCount ?? 0))} 条 / ${escapeHtml(String(level.sourceCount ?? 0))} 源</span>
+      </div>
+      <div class="source-entry-list">
+        ${rows || '<div class="empty-state">该层暂无来源。</div>'}
+      </div>
+    `;
+    els.sourceLevelBoards.appendChild(section);
+  });
+}
+
+function renderSocialRadar(channels) {
+  if (!channels.length) {
+    els.socialRadar.innerHTML = '<div class="empty-state">暂无 X / Reddit 热点。</div>';
+    return;
+  }
+  els.socialRadar.innerHTML = "";
+  channels.forEach((channel) => {
+    const panel = document.createElement("section");
+    panel.className = "social-panel";
+    const entries = (channel.entries || []).map((entry) => `
+      <div class="social-entry">
+        <strong>${escapeHtml(entry.name || entry.label || "")}</strong>
+        <div class="social-entry-meta">${escapeHtml(entry.levelLabel || entry.confidenceLabel || "")} · ${escapeHtml(String(entry.itemCount ?? 0))} 条 · Trust ${escapeHtml(String(entry.trustScore ?? "--"))}%</div>
+        <div class="social-entry-title">${escapeHtml(entry.latestTitle || "当前窗口暂无活跃内容，展示为配置监控名单。").replace(/\n/g, "<br>")}</div>
+      </div>
+    `).join("");
+    const posts = (channel.posts || []).map((post) => `
+      <div class="social-post">
+        <strong>${escapeHtml(post.author || "")}</strong>
+        <div class="social-entry-meta">${escapeHtml(post.levelLabel || "")} · ${escapeHtml(post.source || "")}</div>
+        <div class="social-entry-title">${escapeHtml(post.title || "").replace(/\n/g, "<br>")}</div>
+      </div>
+    `).join("");
+    panel.innerHTML = `
+      <div class="social-panel-head">
+        <div>
+          <strong>${escapeHtml(channel.label || "")}</strong>
+          <div class="source-level-meta">${escapeHtml(channel.description || "")}</div>
+        </div>
+        <span class="source-level-stats">${escapeHtml(String(channel.entryCount ?? 0))} 个热点</span>
+      </div>
+      <div class="social-columns">
+        <div class="social-column">
+          <div class="social-column-title">热点账号 / 作者</div>
+          ${entries || '<div class="empty-state">当前窗口暂无活跃账号，展示配置监控名单。</div>'}
+        </div>
+        <div class="social-column">
+          <div class="social-column-title">热点帖子 / 推文</div>
+          ${posts || '<div class="empty-state">当前窗口暂无热点内容。</div>'}
+        </div>
+      </div>
+    `;
+    els.socialRadar.appendChild(panel);
+  });
+}
+
+function renderSourceCatalog(sourceCatalog) {
+  const levels = sourceCatalog.levels || [];
+  if (!levels.length) {
+    els.sourceCatalog.innerHTML = '<div class="empty-state">暂无配置来源目录。</div>';
+    return;
+  }
+  els.sourceCatalog.innerHTML = "";
+  levels.forEach((level) => {
+    const block = document.createElement("section");
+    block.className = "catalog-level";
+    const chips = (level.sources || []).map((source) => `
+      <span class="catalog-chip">${escapeHtml(source.name || "")}<em>${escapeHtml(source.channelLabel || source.channel || "")}</em></span>
+    `).join("");
+    block.innerHTML = `
+      <div class="source-level-head">
+        <div>
+          <strong>${escapeHtml(level.label || "")}</strong>
+          <div class="source-level-meta">${escapeHtml(level.description || "")}</div>
+        </div>
+        <span class="source-level-stats">${escapeHtml(String(level.sourceCount ?? 0))} 源</span>
+      </div>
+      <div class="catalog-chip-list">
+        ${chips || '<div class="empty-state">该层暂无配置来源。</div>'}
+      </div>
+    `;
+    els.sourceCatalog.appendChild(block);
   });
 }
 

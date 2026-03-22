@@ -37,8 +37,12 @@ pip-wheel-metadata/
 artifacts/
 *.log
 .tools/
+.clawhub/
 skills/*
 !skills/README.md
+!skills/clawhub_selection.toml
+!skills/agents/
+!skills/agents/**
 
 .ipynb_checkpoints/
 

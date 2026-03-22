@@ -133,21 +133,30 @@ class AgentSkillLoader:
             resolved_roots.append(root)
 
         candidates: list[Path] = []
+        seen: set[Path] = set()
+
+        def add_candidate(path: Path) -> None:
+            resolved = path.resolve()
+            if resolved in seen:
+                return
+            seen.add(resolved)
+            candidates.append(path)
+
         for root in resolved_roots:
             direct = root / agent_id
             if direct.exists():
-                candidates.append(direct)
+                add_candidate(direct)
             direct_agents = root / "agents" / agent_id
             if direct_agents.exists():
-                candidates.append(direct_agents)
+                add_candidate(direct_agents)
             if root.exists():
                 for child in sorted(item for item in root.iterdir() if item.is_dir()):
                     nested = child / "agents" / agent_id
                     if nested.exists():
-                        candidates.append(nested)
+                        add_candidate(nested)
                     nested_direct = child / agent_id
                     if nested_direct.exists():
-                        candidates.append(nested_direct)
+                        add_candidate(nested_direct)
         return candidates
 
     def load(

@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import Counter
 
 from ....llm import LiteLLMClient
-from ....models import CanonicalNewsEvent, EvidenceRef, NewsCluster
+from ....models import CanonicalNewsEvent, EvidenceRef, NewsCluster, RawNewsItem
 from ....utils import compact_whitespace, stable_id
 from .. import prompts
 from ..runtime import EventIntelligenceRuntime
@@ -18,6 +18,34 @@ def _tier_rank(tier: str) -> int:
         "social": 3,
         "unknown": 4,
     }.get(tier, 5)
+
+
+def _trust_score(item: RawNewsItem) -> float:
+    raw_score = item.metadata.get("source_trust_score", 0.0)
+    try:
+        return float(raw_score)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _source_mix_metadata(items: list[RawNewsItem]) -> dict[str, object]:
+    tier_counts = Counter(item.source_tier for item in items)
+    level_counts = Counter(
+        str(item.metadata.get("source_confidence_level", "unknown"))
+        for item in items
+    )
+    trust_scores = [_trust_score(item) for item in items]
+    average_trust = sum(trust_scores) / len(trust_scores) if trust_scores else 0.0
+    return {
+        "source_count": len(items),
+        "source_tier_counts": dict(tier_counts),
+        "source_level_counts": dict(level_counts),
+        "source_names": list(dict.fromkeys(item.source for item in items)),
+        "avg_source_trust": round(average_trust, 2),
+        "max_source_trust": round(max(trust_scores), 2) if trust_scores else 0.0,
+        "has_l1_anchor": level_counts.get("L1", 0) > 0,
+        "has_l2_anchor": level_counts.get("L2", 0) > 0,
+    }
 
 
 def detect_event_type(normalized_text: str) -> str:
@@ -89,7 +117,7 @@ class EventExtractionAgent:
         for cluster in clusters:
             ranked = sorted(
                 cluster.items,
-                key=lambda item: (_tier_rank(item.source_tier), item.published_at),
+                key=lambda item: (_tier_rank(item.source_tier), -_trust_score(item), item.published_at),
             )
             primary = ranked[0]
             event_type = detect_event_type(cluster.normalized_text)
@@ -115,6 +143,14 @@ class EventExtractionAgent:
                 zh_titles = [item.title for item in ranked if item.language.startswith("zh")]
                 if zh_titles:
                     title = zh_titles[0]
+            metadata = _source_mix_metadata(ranked)
+            metadata.update(
+                {
+                    "primary_source": primary.source,
+                    "primary_source_tier": primary.source_tier,
+                    "primary_source_level": primary.metadata.get("source_confidence_level", "unknown"),
+                }
+            )
             events.append(
                 CanonicalNewsEvent(
                     id=stable_id(cluster.id, event_type, bias, size=16),
@@ -131,10 +167,7 @@ class EventExtractionAgent:
                     tags=[event_type, bias],
                     supporting_titles=titles[:5],
                     evidence_refs=evidence,
-                    metadata={
-                        "source_count": len(cluster.items),
-                        "title_count": dict(Counter(item.source_tier for item in ranked)),
-                    },
+                    metadata=metadata,
                 )
             )
         return events
