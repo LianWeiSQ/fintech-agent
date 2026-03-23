@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from fitech_agent.config import AppConfig, AuditSettings, ModelRoute, RunDefaults, SourceDefinition
 from fitech_agent.dashboard import DashboardService
-from fitech_agent.models import IntegratedView, NewsWindow, ResearchRunResult, RawNewsItem
+from fitech_agent.models import IntegratedView, NewsWindow, RawNewsItem, ResearchRunResult
 
 
 class DashboardServiceTests(unittest.TestCase):
@@ -65,17 +65,18 @@ class DashboardServiceTests(unittest.TestCase):
         runtime_dir = self._make_runtime_dir()
         try:
             payload = DashboardService(self._build_config(runtime_dir)).bootstrap_payload()
-            self.assertEqual(payload["title"], "Fintech Agent 控制台")
+            self.assertEqual(payload["title"], "Fintech Agent 研究工作台")
             self.assertEqual(payload["defaults"]["mode"], "full_report")
             self.assertTrue(any(item["name"] == "ReutersMarketsX" for item in payload["sources"]))
             self.assertEqual(len(payload["workflow"]), 5)
             self.assertIn("sourceCatalog", payload)
             self.assertIn("sourceMix", payload)
+            self.assertEqual(payload["sourceCatalog"]["totalSources"], 3)
             self.assertTrue(any(item["channel"] == "x" for item in payload["sourceCatalog"]["channels"]))
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 
-    def test_run_research_returns_frontend_payload_and_allows_follow_up(self) -> None:
+    def test_run_research_returns_frontend_payload_and_supports_run_context_chat(self) -> None:
         runtime_dir = self._make_runtime_dir()
         try:
             service = DashboardService(self._build_config(runtime_dir))
@@ -89,21 +90,96 @@ class DashboardServiceTests(unittest.TestCase):
                     "sources": ["bootstrap_sample"],
                 }
             )
+
             self.assertGreater(payload["meta"]["runId"], 0)
-            self.assertTrue(payload["assistantOpening"]["text"])
-            self.assertGreater(len(payload["domainBoards"]), 0)
             self.assertEqual(payload["chatHandle"]["runId"], payload["meta"]["runId"])
+            self.assertGreater(len(payload["signalCards"]), 0)
+            self.assertGreater(len(payload["workflow"]), 0)
             self.assertIn("sourceMix", payload)
-            self.assertEqual(payload["sourceMix"]["levels"][1]["level"], "L2")
+            self.assertIn("auditNotes", payload)
+            self.assertIsInstance(payload["auditNotes"], list)
+            self.assertGreater(len(payload["reportSections"]), 0)
+            self.assertIsNotNone(payload["meta"]["markdownPath"])
 
             answer = service.answer_question(
                 {
                     "question": "最需要盯的风险变量是什么？",
+                    "mode": "run_context",
                     "runId": payload["chatHandle"]["runId"],
                 }
             )
-            self.assertEqual(answer["mode"], "fallback")
-            self.assertIn("观察变量", answer["answer"])
+            self.assertEqual(answer["chatMode"], "run_context")
+            self.assertTrue(answer["answer"])
+            self.assertGreater(len(answer["nextPrompts"]), 0)
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
+    def test_general_chat_mode_works_without_run_context(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            service = DashboardService(self._build_config(runtime_dir))
+            answer = service.answer_question(
+                {
+                    "question": "这个系统能做什么？",
+                    "mode": "general",
+                }
+            )
+            self.assertEqual(answer["chatMode"], "general")
+            self.assertTrue(answer["answer"])
+            self.assertGreater(len(answer["citations"]), 0)
+            self.assertIn("init-db", answer["citations"][0]["source"])
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
+    def test_collect_only_run_marks_skipped_workflow_and_empty_report_outputs(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            service = DashboardService(self._build_config(runtime_dir))
+            payload = service.run_research(
+                {
+                    "prompt": "先只采集消息。",
+                    "triggeredAt": "2026-03-20T07:00:00+08:00",
+                    "mode": "collect_only",
+                    "lookbackHours": 18,
+                    "scopes": ["equity"],
+                    "sources": ["bootstrap_sample"],
+                }
+            )
+
+            self.assertEqual(payload["meta"]["mode"], "collect_only")
+            self.assertIsNone(payload["meta"]["markdownPath"])
+            self.assertIsNone(payload["meta"]["pdfPath"])
+            self.assertEqual(payload["workflow"][0]["status"], "completed")
+            self.assertTrue(all(step["status"] == "idle" for step in payload["workflow"][1:]))
+            self.assertIn("仅采集", payload["reportSections"][0]["title"])
+            self.assertEqual(len(payload["events"]), 0)
+            self.assertGreater(len(payload["timeline"]), 0)
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
+    def test_resolve_report_file_accepts_generated_markdown_and_rejects_outside_paths(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            service = DashboardService(self._build_config(runtime_dir))
+            payload = service.run_research(
+                {
+                    "prompt": "请给我一份盘前简报。",
+                    "triggeredAt": "2026-03-20T07:00:00+08:00",
+                    "mode": "full_report",
+                    "lookbackHours": 18,
+                    "scopes": ["equity", "commodities"],
+                    "sources": ["bootstrap_sample"],
+                }
+            )
+
+            markdown_path, content_type = service.resolve_report_file(payload["meta"]["markdownPath"])
+            self.assertTrue(markdown_path.is_file())
+            self.assertEqual(content_type, "text/markdown; charset=utf-8")
+
+            outside_path = runtime_dir / "outside.md"
+            outside_path.write_text("outside", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                service.resolve_report_file(str(outside_path))
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 

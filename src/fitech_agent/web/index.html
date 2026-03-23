@@ -1,172 +1,237 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fintech Agent 研究交互台</title>
+  <title>Fintech Agent 研究工作台</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <div>
-        <div class="eyebrow">Fintech Agent</div>
-        <h1>研究交互台</h1>
-        <p id="pageSubtitle">只保留你需要盯的研究窗口和模型交互过程。</p>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="功能导航">
+      <div class="brand-block">
+        <div class="brand-kicker">Fintech Agent</div>
+        <div class="brand-title">研究工作台</div>
+        <p class="brand-copy">把综合分析、智能问答、新闻源监控、研究过程和研究报告收拢到同一个本地工作台里。</p>
       </div>
-      <div class="top-meta">
-        <span class="badge" id="modelBadge">模型检测中</span>
-        <span class="badge subtle" id="runWindow">等待运行</span>
-      </div>
-    </header>
 
-    <main class="layout">
-      <section class="panel composer-panel">
-        <div class="panel-head">
+      <nav class="sidebar-nav" id="navList"></nav>
+
+      <div class="sidebar-foot">
+        <div class="foot-label">Workspace</div>
+        <div class="foot-copy">首页固定为综合分析，其余模块围绕同一轮研究结果展开，支持刷新后保留当前视图。</div>
+      </div>
+    </aside>
+
+    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="关闭侧边导航"></button>
+
+    <main class="workspace">
+      <header class="workspace-topbar">
+        <div class="workspace-head">
+          <button class="icon-btn mobile-only" id="sidebarToggleButton" type="button" aria-label="打开导航">☰</button>
           <div>
-            <div class="section-kicker">Research Input</div>
-            <h2>提问并发起分析</h2>
-          </div>
-          <span class="status-tag" id="runBadge">待命</span>
-        </div>
-
-        <label class="field-label" for="promptInput">研究问题</label>
-        <textarea id="promptInput" class="prompt-input" rows="4" placeholder="例如：给我一份盘前简报，并解释黄金、原油、A股之间的主线关系。"></textarea>
-
-        <div class="quick-prompts" id="quickPrompts"></div>
-
-        <div class="control-row">
-          <div class="control-block">
-            <div class="field-label">运行模式</div>
-            <div class="segmented" id="modeSwitch"></div>
-          </div>
-          <div class="control-block compact">
-            <label class="field-label" for="lookbackHours">回看窗口 (小时)</label>
-            <input id="lookbackHours" class="number-input" type="number" min="1" max="72" value="18">
+            <div class="top-kicker" id="viewEyebrow">Workbench</div>
+            <h1 id="viewTitle">综合分析</h1>
+            <p id="viewSubtitle">先发起研究，再切换到其它模块查看来源分层、研究过程、问答追问和报告输出。</p>
           </div>
         </div>
+        <div class="workspace-badges">
+          <span class="badge" id="modelBadge">模型检测中</span>
+          <span class="badge subtle" id="runWindow">等待运行</span>
+          <span class="badge subtle" id="runStatusBadge">待命</span>
+        </div>
+      </header>
 
-        <div class="field-label">关注范围</div>
-        <div class="chip-group" id="scopeChips"></div>
+      <section class="view is-active" data-view="overview">
+        <div class="view-grid">
+          <section class="panel control-panel">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Overview</div>
+                <h2>发起分析</h2>
+              </div>
+              <span class="status-tag" id="runBadge">待命</span>
+            </div>
 
-        <div class="action-row">
-          <button class="primary-btn" id="runResearchButton" type="button">开始分析</button>
+            <label class="field-label" for="promptInput">研究问题</label>
+            <textarea id="promptInput" class="prompt-input" rows="4" placeholder="例如：给我一份盘前简报，并解释黄金、原油、A股之间的主线关系。"></textarea>
+
+            <div class="quick-prompts" id="quickPrompts"></div>
+
+            <div class="controls-grid">
+              <div class="control-card">
+                <div class="field-label">运行模式</div>
+                <div class="segmented" id="modeSwitch"></div>
+              </div>
+              <div class="control-card compact">
+                <label class="field-label" for="lookbackHours">回看窗口（小时）</label>
+                <input id="lookbackHours" class="number-input" type="number" min="1" max="72" value="18">
+              </div>
+            </div>
+
+            <div class="field-label">关注范围</div>
+            <div class="chip-group" id="scopeChips"></div>
+
+            <div class="action-row">
+              <button class="primary-btn" id="runResearchButton" type="button">开始分析</button>
+            </div>
+          </section>
+
+          <section class="panel hero-panel">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Composite</div>
+                <h2>综合判断</h2>
+              </div>
+            </div>
+            <div class="signal-grid" id="signalCards"></div>
+            <div class="hero-card">
+              <div class="hero-score" id="heroScore">52</div>
+              <div class="hero-main">
+                <div class="hero-title" id="heroTitle">等待运行</div>
+                <div class="hero-label" id="heroLabel">等待任务</div>
+                <p class="hero-summary" id="heroSummary">运行后展示综合判断、指标条、重点板块和本轮来源摘要。</p>
+              </div>
+            </div>
+          </section>
         </div>
 
-        <section class="stack-section">
-          <div class="section-head">
+        <section class="panel">
+          <div class="panel-head">
             <div>
-              <div class="section-kicker">Workflow</div>
-              <h3>模型交互过程</h3>
+              <div class="section-kicker">Domain Boards</div>
+              <h2>重点板块</h2>
             </div>
           </div>
-          <ol class="workflow-list" id="workflowList"></ol>
+          <div class="board-grid" id="overviewBoards"></div>
         </section>
 
-        <section class="stack-section">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Chat</div>
-              <h3>继续追问模型</h3>
-            </div>
-          </div>
-          <div class="chat-thread" id="chatThread"></div>
-          <div class="chat-compose">
-            <textarea id="chatInput" rows="3" placeholder="继续追问：比如现在最适合做多的主线是什么？"></textarea>
-            <div class="action-row right">
-              <button class="ghost-btn" id="chatSendButton" type="button">发送追问</button>
-            </div>
-          </div>
-        </section>
+        <div class="info-grid">
+          <section class="panel">
+            <div class="panel-head"><h2>观察清单</h2></div>
+            <div class="tag-list" id="overviewWatchlist"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>市场主线</h2></div>
+            <div class="tape-list" id="marketTape"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>报告预览</h2></div>
+            <div class="stack-list" id="reportPreview"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>来源摘要</h2></div>
+            <div class="stack-list" id="overviewSourceSummary"></div>
+          </section>
+        </div>
       </section>
 
-      <aside class="panel focus-panel">
-        <div class="panel-head">
-          <div>
-            <div class="section-kicker">Focus</div>
-            <h2>我现在要盯什么</h2>
-          </div>
-          <span class="status-tag accent" id="heroLabel">等待任务</span>
+      <section class="view" data-view="assistant">
+        <div class="view-grid assistant-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Assistant</div>
+                <h2>智能问答</h2>
+              </div>
+            </div>
+            <div class="segmented" id="assistantModeSwitch"></div>
+            <div class="context-card" id="assistantContext"></div>
+            <div class="quick-prompts vertical" id="assistantPrompts"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Conversation</div>
+                <h2>对话窗口</h2>
+              </div>
+            </div>
+            <div class="chat-thread" id="assistantThread"></div>
+            <div class="chat-compose">
+              <textarea id="assistantInput" rows="4" placeholder="请输入你的问题"></textarea>
+              <div class="action-row right">
+                <button class="ghost-btn" id="assistantSendButton" type="button">发送</button>
+              </div>
+            </div>
+          </section>
         </div>
+      </section>
 
-        <div class="hero-card">
-          <div class="hero-score" id="heroScore">52</div>
-          <div class="hero-main">
-            <div class="hero-title" id="heroTitle">等待运行</div>
-            <div class="hero-summary" id="heroSummary">输入问题后启动一次分析，右侧只保留最值得关注的窗口。</div>
-          </div>
-        </div>
-
-        <section class="stack-section slim">
-          <div class="section-head">
+      <section class="view" data-view="sources">
+        <section class="panel">
+          <div class="panel-head">
             <div>
-              <div class="section-kicker">Focus Windows</div>
-              <h3>关注窗口</h3>
+              <div class="section-kicker">Sources</div>
+              <h2>新闻源中心</h2>
             </div>
           </div>
-          <div class="focus-cards" id="focusCards"></div>
-        </section>
-
-        <section class="stack-section slim">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Watchlist</div>
-              <h3>盯盘清单</h3>
-            </div>
-          </div>
-          <div class="watchlist" id="watchlist"></div>
-        </section>
-
-        <section class="stack-section slim">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Run Context</div>
-              <h3>当前研究窗口</h3>
-            </div>
-          </div>
-          <div class="run-meta" id="runMeta"></div>
-        </section>
-
-        <section class="stack-section slim">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Source Mix</div>
-              <h3>L1 / L2 / L3 / L4 Source Mix</h3>
-            </div>
+          <div class="filter-stack">
+            <div class="filter-row" id="levelFilters"></div>
+            <div class="filter-row" id="channelFilters"></div>
+            <div class="filter-row" id="activityFilters"></div>
           </div>
           <div class="source-mix-grid" id="sourceMixCards"></div>
         </section>
 
-        <section class="stack-section slim">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Source Levels</div>
-              <h3>各置信度消息源</h3>
-            </div>
-          </div>
-          <div class="source-levels" id="sourceLevelBoards"></div>
-        </section>
+        <div class="view-grid">
+          <section class="panel">
+            <div class="panel-head"><h2>来源分层</h2></div>
+            <div class="stack-list" id="sourceLevelBoards"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>社交热点</h2></div>
+            <div class="stack-list" id="socialRadar"></div>
+          </section>
+        </div>
 
-        <section class="stack-section slim">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Social Radar</div>
-              <h3>X / Reddit 热点</h3>
-            </div>
-          </div>
-          <div class="social-radar" id="socialRadar"></div>
+        <section class="panel">
+          <div class="panel-head"><h2>配置来源目录</h2></div>
+          <div class="stack-list" id="sourceCatalog"></div>
         </section>
+      </section>
 
-        <section class="stack-section slim">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Catalog</div>
-              <h3>配置来源目录</h3>
-            </div>
-          </div>
-          <div class="source-catalog" id="sourceCatalog"></div>
+      <section class="view" data-view="workflow">
+        <div class="view-grid">
+          <section class="panel">
+            <div class="panel-head"><h2>研究过程</h2></div>
+            <ol class="workflow-list" id="workflowList"></ol>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>审计与降级说明</h2></div>
+            <div class="stack-list" id="auditPanel"></div>
+          </section>
+        </div>
+
+        <div class="view-grid">
+          <section class="panel">
+            <div class="panel-head"><h2>时间线</h2></div>
+            <div class="stack-list" id="timelineList"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>事件列表</h2></div>
+            <div class="stack-list" id="eventList"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" data-view="report">
+        <div class="view-grid">
+          <section class="panel">
+            <div class="panel-head"><h2>报告状态</h2></div>
+            <div class="stack-list" id="reportStatus"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>报告文件</h2></div>
+            <div class="stack-list" id="reportLinks"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head"><h2>研究报告内容</h2></div>
+          <div class="stack-list" id="reportSections"></div>
         </section>
-      </aside>
+      </section>
     </main>
   </div>
 

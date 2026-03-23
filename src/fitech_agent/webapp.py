@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .config import default_config_path, load_config, load_dotenv
 from .dashboard import DashboardService
@@ -21,7 +21,9 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
     assets: dict[str, tuple[bytes, str]]
 
     def do_GET(self) -> None:
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
         if path == "/":
             self._write_bytes(HTTPStatus.OK, *self.assets["/"])
             return
@@ -30,6 +32,23 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/bootstrap":
             self._write_json(HTTPStatus.OK, self.service.bootstrap_payload())
+            return
+        if path == "/api/report-file":
+            try:
+                raw_path = query.get("path", [""])[0]
+                file_path, content_type = self.service.resolve_report_file(raw_path)
+                body = file_path.read_bytes()
+                self.send_response(HTTPStatus.OK.value)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header(
+                    "Content-Disposition",
+                    f'inline; filename="{file_path.name}"',
+                )
+                self.end_headers()
+                self.wfile.write(body)
+            except ValueError as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
         self._write_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 

@@ -12,6 +12,10 @@ Fitech Agent is a Python-first, LangGraph-oriented multi-agent pipeline for:
 The repository is bootstrapped to run out of the box with a local sample feed while
 keeping live-source and model-routing interfaces pluggable.
 
+## Overview
+
+- Chinese project overview: `docs/project-overview.md`
+
 ## Highlights
 
 - 5 core agents with layered `steps/`, `runtime.py`, `prompts.py`, and per-agent `skill.md`
