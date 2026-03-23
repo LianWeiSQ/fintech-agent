@@ -1,0 +1,30 @@
+timezone = "Asia/Shanghai"
+report_language = "zh-CN"
+database_path = "artifacts/fitech_agent.demo.db"
+report_dir = "artifacts/reports-demo"
+skill_dirs = ["skills"]
+
+[audit]
+min_verified_score = 0.65
+min_publish_confidence = 0.55
+
+[model_route]
+provider = ""
+model = ""
+temperature = 0.1
+max_output_tokens = 900
+base_url = ""
+api_key_env = ""
+
+[run_defaults]
+mode = "full_report"
+lookback_hours = 96
+
+[[sources]]
+name = "bootstrap_sample"
+kind = "file"
+endpoint = "examples/sample_news.json"
+language = "mixed"
+tier = "tier1_media"
+enabled = true
+tags = ["bootstrap", "macro"]
