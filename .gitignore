@@ -49,7 +49,6 @@ skills/*
 .env
 .env.*
 *.env
-config/local*.toml
 config/*.secret.toml
 
 uv.lock

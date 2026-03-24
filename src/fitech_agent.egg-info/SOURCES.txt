@@ -112,6 +112,7 @@ src/fitech_agent/web/index.html
 tests/test_audit.py
 tests/test_cli.py
 tests/test_dashboard.py
+tests/test_llm.py
 tests/test_normalization.py
 tests/test_pipeline.py
 tests/test_rss_filters.py

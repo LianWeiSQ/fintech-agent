@@ -7,6 +7,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: langgraph>=0.2.0
 Requires-Dist: litellm>=1.63.0
 Requires-Dist: langsmith>=0.3.15
+Requires-Dist: openai>=2.29.0
 Requires-Dist: reportlab>=4.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0.0; extra == "dev"
@@ -101,6 +102,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\clawhub.ps1 --help
 - Keep provider credentials only in ignored local files or shell environment variables.
 - If you need model routing, put it in a local override such as `config/local.toml`,
   which is ignored by Git.
+- To call OpenAI's Codex-optimized models from the agent backend, use the Responses API path:
+
+```toml
+[model_route]
+provider = "codex"
+model = "gpt-5-codex"
+reasoning_effort = "medium"
+max_output_tokens = 900
+api_key_env = "OPENAI_API_KEY"
+```
+
+- You can also point `OPENAI_MODEL` to `gpt-5-codex` or `gpt-5.3-codex`; when the
+  model name contains `codex`, the backend will automatically switch from the
+  LiteLLM chat-completions path to the OpenAI Responses API path.
 - The built-in trust policy recognizes these V1 trusted sources:
   `Reuters`, `Bloomberg`, `???`, `?????`, `??????`,
   `?????`, `?????`, `OPEC`, `Fed`, `CME`.

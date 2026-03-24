@@ -1,3 +1,7 @@
+# Single committed runtime config.
+# To switch models later, keep editing [model_route] instead of adding more
+# demo/example/local config files.
+
 timezone = "Asia/Shanghai"
 report_language = "zh-CN"
 database_path = "artifacts/fitech_agent.db"
@@ -9,12 +13,34 @@ min_verified_score = 0.65
 min_publish_confidence = 0.55
 
 [model_route]
-provider = ""
-model = ""
+provider = "custom"
+backend = "openai_responses"
+model = "gpt-5.4"
 temperature = 0.1
 max_output_tokens = 900
-base_url = ""
-api_key_env = ""
+base_url = "https://codex-api.packycode.com/v1"
+api_key_env = "OPENAI_API_KEY"
+
+# Single model routing interface:
+# - Third-party OpenAI-compatible Responses gateway:
+#   provider = "custom"
+#   backend = "openai_responses"
+#   model = "gpt-5.4"
+#   base_url = "https://codex-api.packycode.com/v1"
+#   api_key_env = "OPENAI_API_KEY"
+#   reasoning_effort = "xhigh"
+# - OpenAI chat / reasoning models through LiteLLM:
+#   provider = "openai"
+#   backend = "litellm"
+#   model = "gpt-4.1-mini"
+# - Alternate OpenAI-compatible Responses gateways:
+#   provider = "custom"
+#   backend = "openai_responses"
+#   model = "your-model-name"
+#   base_url = "https://your-gateway.example/v1"
+#   api_key_env = "YOUR_GATEWAY_API_KEY"
+
+reasoning_effort = "xhigh"
 
 # Optional per-agent overrides inherit from [model_route].
 # [agent_routes.event_intelligence]
