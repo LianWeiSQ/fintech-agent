@@ -51,6 +51,21 @@ TIER_PROFILES = {
         trust_score=0.88,
         priority=300,
     ),
+    "selected_x": SourceProfile(
+        tier="selected_x",
+        level="L3",
+        category="selected_x_signal",
+        representative_orgs=(
+            "Reuters Markets",
+            "Bloomberg Markets",
+            "Nick Timiraos",
+            "Javier Blas",
+        ),
+        characteristics="Curated institution and reporter X accounts used as a supplementary prompt layer.",
+        best_for="Fast headline tracking, reporter confirmation, and intraday follow-up.",
+        trust_score=0.66,
+        priority=180,
+    ),
     "tier2_media": SourceProfile(
         tier="tier2_media",
         level="L3",
@@ -123,11 +138,13 @@ SOURCE_ALIASES = {
         "wall street journal",
         "\u534e\u5c14\u8857\u65e5\u62a5",
     ),
+    "selected_x": (
+        "nick timiraos",
+        "javier blas",
+        "markets x",
+        "selected x",
+    ),
     "social": (
-        "x",
-        "twitter",
-        "x twitter",
-        "x.com",
         "weibo",
         "\u5fae\u535a",
         "xueqiu",
@@ -155,8 +172,8 @@ DOMAIN_HINTS = {
     "wallstreetcn.com": "tier2_media",
     "cls.cn": "tier2_media",
     "wsj.com": "tier2_media",
-    "x.com": "social",
-    "twitter.com": "social",
+    "x.com": "selected_x",
+    "twitter.com": "selected_x",
     "weibo.com": "social",
     "xueqiu.com": "social",
     "reddit.com": "social",
@@ -171,6 +188,9 @@ TAG_HINTS = {
     "newswire": "tier1_media",
     "media": "tier2_media",
     "financial_media": "tier2_media",
+    "selected_x": "selected_x",
+    "x": "selected_x",
+    "twitter": "selected_x",
     "social": "social",
     "community": "social",
     "forum": "social",
@@ -215,6 +235,25 @@ def _infer_from_tags(tags: list[str] | None) -> str | None:
     return None
 
 
+def _looks_like_selected_x(
+    name: str,
+    endpoint: str = "",
+    tags: list[str] | None = None,
+) -> bool:
+    normalized_tags = {normalize_source_name(tag) for tag in tags or []}
+    endpoint_text = (endpoint or "").lower()
+    normalized_name = normalize_source_name(name)
+    return (
+        "selected_x" in normalized_tags
+        or "x" in normalized_tags
+        or "twitter" in normalized_tags
+        or "rsshub.app/twitter/" in endpoint_text
+        or "x.com/" in endpoint_text
+        or "twitter.com/" in endpoint_text
+        or normalized_name.endswith(" x")
+    )
+
+
 def infer_source_tier(
     name: str,
     explicit_tier: str | None = None,
@@ -243,3 +282,20 @@ def resolve_source_profile(
 ) -> SourceProfile:
     tier = infer_source_tier(name, explicit_tier, endpoint=endpoint, tags=tags)
     return TIER_PROFILES.get(tier, TIER_PROFILES["unknown"])
+
+
+def resolve_source_class(
+    name: str,
+    explicit_tier: str | None = None,
+    *,
+    endpoint: str = "",
+    tags: list[str] | None = None,
+) -> str | None:
+    tier = infer_source_tier(name, explicit_tier, endpoint=endpoint, tags=tags)
+    if tier == "official":
+        return "official"
+    if tier == "selected_x" or _looks_like_selected_x(name, endpoint=endpoint, tags=tags):
+        return "x_selected"
+    if tier in {"tier1_media", "tier2_media"}:
+        return "media"
+    return None

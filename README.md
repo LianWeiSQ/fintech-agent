@@ -1,20 +1,22 @@
-# Fitech Agent
+﻿# Fitech Agent
 
 Fitech Agent is a Python-first, LangGraph-oriented multi-agent pipeline for:
 
-- collecting bilingual macro and market-moving news
+- collecting authority-first bilingual macro and market-moving news
 - normalizing and deduplicating events
 - scoring source credibility and evidence quality
 - mapping events to China and global macro assets
 - generating an on-demand Chinese research brief with strategy-oriented views
 - storing the full research chain for replay and ex-post evaluation
 
-The repository is bootstrapped to run out of the box with a local sample feed while
-keeping live-source and model-routing interfaces pluggable.
+The repository now ships with a precious-metals-focused source pack for live runs and
+an offline demo config for local smoke tests, while keeping source adapters and model
+routing interfaces pluggable.
 
 ## Overview
 
 - Chinese project overview: `docs/project-overview.md`
+- Chinese run guide: `docs/run-guide.md`
 
 ## Highlights
 
@@ -36,8 +38,9 @@ python -m fitech_agent run --config config/example.toml
 python -m fitech_agent run --config config/example.toml --mode collect-only
 ```
 
-The default config uses `examples/sample_news.json` so the pipeline can be exercised
-without network access or provider credentials.
+`config/example.toml` is the committed authority-first source pack for gold / silver
+research. If you want an offline sample run, use `config/demo.toml`, which points to
+`examples/sample_news.json`.
 
 ## Manual runs
 
@@ -83,14 +86,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\clawhub.ps1 --help
 
 ## Live data and models
 
-- Add RSS or file sources in `config/example.toml`.
+- Adjust the authority-first source pack in `config/example.toml`.
+- Use `config/demo.toml` when you want a fully local sample-file run.
 - Set `FITECH_AGENT_CONFIG` to point LangGraph CLI at a custom config.
 - Keep provider credentials only in ignored local files or shell environment variables.
 - If you need model routing, put it in a local override such as `config/local.toml`,
   which is ignored by Git.
-- The built-in trust policy recognizes these V1 trusted sources:
-  `Reuters`, `Bloomberg`, `???`, `?????`, `??????`,
-  `?????`, `?????`, `OPEC`, `Fed`, `CME`.
+- The default product-facing source hierarchy is:
+  `L1 官方锚点`, `L2 权威媒体`, `L3 精选 X`.
+- The default precious-metals source pack centers on:
+  `Fed`, `PBOC`, `NBS`, `CME`, `Reuters`, and curated `X` accounts such as
+  `ReutersMarkets`, `BloombergMarkets`, `Nick Timiraos`, and `Javier Blas`.
 
 ## LangGraph local app
 

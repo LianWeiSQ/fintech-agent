@@ -20,7 +20,7 @@ const VIEW_META = {
     label: "新闻源",
     eyebrow: "Source Center",
     title: "新闻源",
-    subtitle: "单独查看 L1-L4 来源分层、社交热点和配置目录，不再把完整来源列表堆在首页。",
+    subtitle: "单独查看 L1-L3 权威来源分层、来源类别看板和配置目录，不再把完整来源列表堆在首页。",
   },
   workflow: {
     icon: "程",
@@ -48,15 +48,13 @@ const SOURCE_LEVEL_OPTIONS = [
   { value: "L1", label: "L1" },
   { value: "L2", label: "L2" },
   { value: "L3", label: "L3" },
-  { value: "L4", label: "L4" },
 ];
 
-const SOURCE_CHANNEL_OPTIONS = [
-  { value: "all", label: "全部渠道" },
-  { value: "rss", label: "RSS" },
-  { value: "x", label: "X" },
-  { value: "reddit", label: "Reddit" },
-  { value: "file", label: "File" },
+const SOURCE_CLASS_OPTIONS = [
+  { value: "all", label: "全部类别" },
+  { value: "official", label: "官方锚点" },
+  { value: "media", label: "权威媒体" },
+  { value: "x_selected", label: "精选 X" },
 ];
 
 const SOURCE_ACTIVITY_OPTIONS = [
@@ -65,7 +63,7 @@ const SOURCE_ACTIVITY_OPTIONS = [
   { value: "all", label: "全部" },
 ];
 
-const LEVEL_ORDER = ["L1", "L2", "L3", "L4"];
+const LEVEL_ORDER = ["L1", "L2", "L3"];
 
 const WORKFLOW_DETAIL_MAP = {
   ingestion: "正在选择消息源并收集、归一化原始新闻…",
@@ -76,8 +74,8 @@ const WORKFLOW_DETAIL_MAP = {
 };
 
 const DEFAULT_ASSISTANT_PROMPTS = {
-  general: ["这个系统现在能做什么？", "消息源怎么分层？", "怎么开始一轮研究分析？"],
-  run_context: ["最值得盯的风险变量是什么？", "把当前主线改写成盘前播报口径。", "只看商品和贵金属还需要盯什么？"],
+  general: ["这个系统现在能做什么？", "黄金/白银消息源怎么分层？", "怎么开始一轮贵金属研究分析？"],
+  run_context: ["黄金最值得盯的风险变量是什么？", "把当前主线改写成贵金属盘前播报口径。", "只看黄金和白银还需要盯什么？"],
 };
 
 const state = {
@@ -95,7 +93,7 @@ const state = {
   workflowPreview: null,
   sourceFilters: {
     level: "all",
-    channel: "all",
+    sourceClass: "all",
     activity: "configured",
   },
   researchForm: {
@@ -152,11 +150,11 @@ function cacheElements() {
     assistantInput: document.getElementById("assistantInput"),
     assistantSendButton: document.getElementById("assistantSendButton"),
     levelFilters: document.getElementById("levelFilters"),
-    channelFilters: document.getElementById("channelFilters"),
+    classFilters: document.getElementById("classFilters"),
     activityFilters: document.getElementById("activityFilters"),
     sourceMixCards: document.getElementById("sourceMixCards"),
     sourceLevelBoards: document.getElementById("sourceLevelBoards"),
-    socialRadar: document.getElementById("socialRadar"),
+    sourceClassBoards: document.getElementById("sourceClassBoards"),
     sourceCatalog: document.getElementById("sourceCatalog"),
     workflowList: document.getElementById("workflowList"),
     auditPanel: document.getElementById("auditPanel"),
@@ -218,7 +216,7 @@ async function initialize() {
     makeMessage({
       role: "assistant",
       label: "通用咨询",
-      text: "这里可以咨询系统能力、消息源分层、研究范围和使用方式。回答只基于本地配置与已知能力，不会假装有实时行情。",
+      text: "这里可以咨询系统能力、贵金属研究范围、权威来源分层和使用方式。回答只基于本地配置与已知能力，不会假装有实时行情。",
       nextPrompts: DEFAULT_ASSISTANT_PROMPTS.general,
     }),
   ];
@@ -431,7 +429,7 @@ function renderOverviewSourceSummary() {
     });
   });
   (sourceMix?.topSources || []).slice(0, 2).forEach((source) => {
-    const copy = source.latestTitle ? `${source.channelLabel} · ${source.latestTitle}` : `${source.channelLabel} · Trust ${source.trustScore || 0}%`;
+    const copy = source.latestTitle ? `${source.sourceClassLabel} · ${source.latestTitle}` : `${source.sourceClassLabel} · Trust ${source.trustScore || 0}%`;
     lines.push({ title: source.name, copy });
   });
 
@@ -475,7 +473,7 @@ function renderAssistantContext() {
     const scopeCount = state.bootstrap?.scopes?.length || 0;
     els.assistantContext.innerHTML = `
       <div class="context-title">通用咨询</div>
-      <p>你可以询问系统能力、研究流程、来源分层、命令入口和使用建议。回答只基于本地配置与已知能力。</p>
+      <p>你可以询问系统能力、贵金属研究流程、权威来源分层、命令入口和使用建议。回答只基于本地配置与已知能力。</p>
       <div class="context-meta-grid">
         <span>消息源 ${escapeHtml(String(sourceCount))} 个</span>
         <span>Scopes ${escapeHtml(String(scopeCount))} 个</span>
@@ -545,7 +543,7 @@ function renderSources() {
   const filteredSources = getFilteredSources();
   renderSourceMixCards(filteredSources);
   renderSourceLevelBoards(filteredSources);
-  renderSocialRadar();
+  renderSourceClassBoards();
   renderSourceCatalog(filteredSources);
 }
 
@@ -554,8 +552,8 @@ function renderSourceFilters() {
     state.sourceFilters.level = value;
     renderSources();
   });
-  renderFilterRow(els.channelFilters, SOURCE_CHANNEL_OPTIONS, state.sourceFilters.channel, (value) => {
-    state.sourceFilters.channel = value;
+  renderFilterRow(els.classFilters, SOURCE_CLASS_OPTIONS, state.sourceFilters.sourceClass, (value) => {
+    state.sourceFilters.sourceClass = value;
     renderSources();
   });
   renderFilterRow(els.activityFilters, SOURCE_ACTIVITY_OPTIONS, state.sourceFilters.activity, (value) => {
@@ -618,12 +616,12 @@ function renderSourceLevelBoards(entries) {
       const rows = items
         .map((entry) => {
           const latest = entry.latestTitle || "当前没有命中消息，保留为配置来源。";
-          const details = entry.active ? `${entry.channelLabel} · ${entry.itemCount} 条 · Trust ${entry.trustScore}%` : `${entry.channelLabel} · 配置来源 · Trust ${entry.trustScore}%`;
+          const details = entry.active ? `${entry.sourceClassLabel} · ${entry.itemCount} 条 · Trust ${entry.trustScore}%` : `${entry.sourceClassLabel} · 配置来源 · Trust ${entry.trustScore}%`;
           return `
             <article class="stack-item">
               <div class="stack-head">
                 <strong>${escapeHtml(entry.name)}</strong>
-                <span class="mini-pill">${escapeHtml(entry.channelLabel)}</span>
+                <span class="mini-pill">${escapeHtml(entry.sourceClassLabel)}</span>
               </div>
               <div class="stack-meta">${escapeHtml(details)}</div>
               <p>${escapeHtml(latest)}</p>
@@ -649,41 +647,26 @@ function renderSourceLevelBoards(entries) {
   els.sourceLevelBoards.innerHTML = sections.length ? sections.join("") : renderEmptyState("当前筛选条件下没有可展示的来源分层。");
 }
 
-function renderSocialRadar() {
-  const channels = getVisibleSocialChannels();
-  if (!channels.length) {
-    els.socialRadar.innerHTML = renderEmptyState("当前筛选下没有 X / Reddit 热点。");
+function renderSourceClassBoards() {
+  const classes = getVisibleSourceClasses();
+  if (!classes.length) {
+    els.sourceClassBoards.innerHTML = renderEmptyState("当前筛选下没有可展示的来源类别。");
     return;
   }
 
-  els.socialRadar.innerHTML = channels
-    .map((channel) => {
-      const entries = (channel.entries || [])
+  els.sourceClassBoards.innerHTML = classes
+    .map((group) => {
+      const entries = (group.entries || [])
         .map((entry) => {
-          const latest = entry.latestTitle || "当前窗口暂无热点内容，保留为监控名单。";
+          const latest = entry.latestTitle || "当前窗口暂无命中内容，保留为配置来源。";
           return `
             <article class="stack-item">
               <div class="stack-head">
                 <strong>${escapeHtml(entry.name || entry.label || "来源")}</strong>
-                <span class="mini-pill">${escapeHtml(entry.levelLabel || entry.confidenceLabel || channel.label)}</span>
+                <span class="mini-pill">${escapeHtml(entry.levelLabel || entry.confidenceLabel || group.label)}</span>
               </div>
               <div class="stack-meta">${escapeHtml(`Trust ${entry.trustScore || 0}% · ${entry.itemCount || 0} 条`)}</div>
               <p>${escapeHtml(latest)}</p>
-            </article>
-          `;
-        })
-        .join("");
-
-      const posts = (channel.posts || [])
-        .map((post) => {
-          return `
-            <article class="stack-item">
-              <div class="stack-head">
-                <strong>${escapeHtml(post.author || post.source || "帖子")}</strong>
-                <span class="mini-pill">${escapeHtml(post.source || channel.label)}</span>
-              </div>
-              <div class="stack-meta">${escapeHtml(post.levelLabel || "")}</div>
-              <p>${escapeHtml(post.title || "暂无内容")}</p>
             </article>
           `;
         })
@@ -693,20 +676,13 @@ function renderSocialRadar() {
         <section class="social-panel">
           <div class="social-panel-head">
             <div>
-              <strong>${escapeHtml(channel.label)}</strong>
-              <div class="source-level-meta">${escapeHtml(channel.description || "")}</div>
+              <strong>${escapeHtml(group.label)}</strong>
+              <div class="source-level-meta">${escapeHtml(group.description || "")}</div>
             </div>
-            <span class="source-level-stats">${escapeHtml(String(channel.entryCount || 0))} 个热点</span>
+            <span class="source-level-stats">${escapeHtml(String(group.entryCount || group.sourceCount || 0))} 个来源</span>
           </div>
-          <div class="social-columns">
-            <div class="social-column">
-              <div class="social-column-title">账号 / 作者</div>
-              ${entries || renderEmptyState("暂无活跃账号，展示为配置监控名单。")}
-            </div>
-            <div class="social-column">
-              <div class="social-column-title">热点内容</div>
-              ${posts || renderEmptyState("当前没有热点内容。")}
-            </div>
+          <div class="source-entry-list">
+            ${entries || renderEmptyState("当前没有命中来源，展示为配置名单。")}
           </div>
         </section>
       `;
@@ -722,7 +698,7 @@ function renderSourceCatalog(entries) {
 
   els.sourceCatalog.innerHTML = entries
     .map((entry) => {
-      const summary = entry.active ? `${entry.levelLabel} · ${entry.channelLabel} · ${entry.itemCount} 条消息` : `${entry.levelLabel} · ${entry.channelLabel} · 配置来源`;
+      const summary = entry.active ? `${entry.levelLabel} · ${entry.sourceClassLabel} · ${entry.itemCount} 条消息` : `${entry.levelLabel} · ${entry.sourceClassLabel} · 配置来源`;
       const detail = entry.latestTitle || entry.tags.join(" / ") || "暂无额外说明";
       return renderStackItem(entry.name, detail, summary);
     })
@@ -1243,7 +1219,7 @@ function getFilteredSources() {
   const sources = buildSourceUniverse();
   return sources
     .filter((entry) => state.sourceFilters.level === "all" || entry.level === state.sourceFilters.level)
-    .filter((entry) => state.sourceFilters.channel === "all" || entry.channel === state.sourceFilters.channel)
+    .filter((entry) => state.sourceFilters.sourceClass === "all" || entry.sourceClass === state.sourceFilters.sourceClass)
     .filter((entry) => {
       if (state.sourceFilters.activity === "all") {
         return true;
@@ -1298,15 +1274,17 @@ function buildSourceUniverse() {
 }
 
 function normalizeSource(source, fallbackLevel, fallbackLabel, fallbackDescription) {
-  const level = source.confidenceLevel || fallbackLevel || "L4";
+  const level = source.confidenceLevel || fallbackLevel || "L3";
   return {
     name: source.name,
     label: source.label || source.name,
     level,
     levelLabel: source.confidenceLabel || fallbackLabel || level,
     levelDescription: fallbackDescription || "",
-    channel: source.channel || "rss",
-    channelLabel: source.channelLabel || String(source.channel || "rss").toUpperCase(),
+    sourceClass: source.sourceClass || "media",
+    sourceClassLabel: source.sourceClassLabel || "权威媒体",
+    sourceClassDescription: source.sourceClassDescription || "",
+    credibilityNote: source.credibilityNote || "",
     trustScore: Number(source.trustScore || 0),
     itemCount: Number(source.itemCount || 0),
     latestTitle: source.latestTitle || "",
@@ -1321,7 +1299,7 @@ function normalizeSource(source, fallbackLevel, fallbackLabel, fallbackDescripti
 
 function groupSourcesByLevel(entries) {
   return entries.reduce((acc, entry) => {
-    const level = entry.level || "L4";
+    const level = entry.level || "L3";
     if (!acc[level]) {
       acc[level] = [];
     }
@@ -1330,28 +1308,30 @@ function groupSourcesByLevel(entries) {
   }, {});
 }
 
-function getVisibleSocialChannels() {
-  const activeChannels = state.latestRun?.sourceMix?.channels || [];
-  const configuredChannels = state.bootstrap?.sourceCatalog?.channels || [];
-  const channelCodes = ["x", "reddit"].filter((channel) => state.sourceFilters.channel === "all" || state.sourceFilters.channel === channel);
+function getVisibleSourceClasses() {
+  const activeClasses = state.latestRun?.sourceMix?.classes || [];
+  const configuredClasses = state.bootstrap?.sourceCatalog?.classes || [];
+  const classCodes = ["official", "media", "x_selected"].filter(
+    (sourceClass) => state.sourceFilters.sourceClass === "all" || state.sourceFilters.sourceClass === sourceClass
+  );
 
-  return channelCodes
-    .map((channelCode) => {
-      const active = activeChannels.find((item) => item.channel === channelCode);
-      const configured = configuredChannels.find((item) => item.channel === channelCode);
+  return classCodes
+    .map((classCode) => {
+      const active = activeClasses.find((item) => item.sourceClass === classCode);
+      const configured = configuredClasses.find((item) => item.sourceClass === classCode);
 
       if (state.sourceFilters.activity === "configured" || !state.latestRun) {
-        return configured ? { ...configured, posts: [] } : null;
+        return configured || null;
       }
 
       if (state.sourceFilters.activity === "active") {
-        if (!active || !(active.entries?.length || active.posts?.length)) {
+        if (!active || !(active.entries?.length || active.itemCount)) {
           return null;
         }
         return active;
       }
 
-      if (active && (active.entries?.length || active.posts?.length)) {
+      if (active && (active.entries?.length || active.itemCount)) {
         return active;
       }
       return configured || null;
@@ -1366,7 +1346,7 @@ function findLevelMeta(level) {
 
 function getAssistantPlaceholder() {
   if (state.assistantMode === "general") {
-    return "例如：这个系统支持哪些能力？消息源如何分层？";
+    return "例如：这个系统支持哪些能力？黄金/白银消息源如何分层？";
   }
   if (!state.latestRun) {
     return "先去综合分析页发起一轮研究";
@@ -1436,7 +1416,7 @@ function formatScopeSummary(scopes) {
 
 function formatSourceSummary(sources) {
   if (!sources.length) {
-    return "Sources：全部启用来源";
+    return "Sources：全部启用权威来源";
   }
   return `Sources：${sources.slice(0, 3).join(" / ")}${sources.length > 3 ? "…" : ""}`;
 }

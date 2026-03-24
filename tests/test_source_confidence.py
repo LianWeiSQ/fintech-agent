@@ -63,6 +63,20 @@ metadata.summary_href_allowlist_domains = ["reuters.com"]
         self.assertGreaterEqual(source.trust_score, 0.85)
         self.assertEqual(source.metadata["source_confidence_level"], "L2")
 
+    def test_selected_x_source_definition_resolves_to_l3(self) -> None:
+        source = SourceDefinition(
+            name="ReutersMarketsX",
+            kind="rss",
+            endpoint="https://rsshub.app/twitter/user/ReutersMarkets",
+            language="en",
+            tier="selected_x",
+            tags=["selected_x", "x"],
+        )
+        self.assertEqual(source.tier, "selected_x")
+        self.assertEqual(source.confidence_level, "L3")
+        self.assertGreaterEqual(source.trust_score, 0.6)
+        self.assertEqual(source.metadata["source_confidence_level"], "L3")
+
     def test_official_and_wire_mix_scores_high_and_verified(self) -> None:
         event = CanonicalNewsEvent(
             id="event-1",

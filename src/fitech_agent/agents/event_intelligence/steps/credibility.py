@@ -8,6 +8,7 @@ WEIGHTS = {
     "official": 1.00,
     "tier1_media": 0.88,
     "tier2_media": 0.72,
+    "selected_x": 0.66,
     "social": 0.38,
     "unknown": 0.50,
 }
@@ -16,6 +17,7 @@ LEVEL_LABELS = {
     "official": "L1",
     "tier1_media": "L2",
     "tier2_media": "L3",
+    "selected_x": "L3",
     "social": "L4",
     "unknown": "L4",
 }
@@ -33,7 +35,7 @@ class CredibilityAgent:
 
             official_count = counts.get("official", 0)
             tier1_count = counts.get("tier1_media", 0)
-            tier2_count = counts.get("tier2_media", 0)
+            tier2_count = counts.get("tier2_media", 0) + counts.get("selected_x", 0)
             social_count = counts.get("social", 0)
             unknown_count = counts.get("unknown", 0)
             distinct_high_signal = sum(

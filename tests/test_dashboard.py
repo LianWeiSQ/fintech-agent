@@ -42,18 +42,18 @@ class DashboardServiceTests(unittest.TestCase):
                     kind="rss",
                     endpoint="https://rsshub.app/twitter/user/ReutersMarkets",
                     language="en",
-                    tier="tier1_media",
+                    tier="selected_x",
                     enabled=True,
-                    tags=["wire", "x"],
+                    tags=["selected_x", "x"],
                 ),
                 SourceDefinition(
-                    name="RedditEconomicsRatesMacro",
+                    name="FedPressAll",
                     kind="rss",
-                    endpoint="https://old.reddit.com/r/Economics/search.rss?q=fed",
+                    endpoint="https://www.federalreserve.gov/feeds/press_all.xml",
                     language="en",
-                    tier="social",
+                    tier="official",
                     enabled=True,
-                    tags=["social", "reddit"],
+                    tags=["official", "macro", "rates"],
                 ),
             ],
             audit=AuditSettings(),
@@ -72,7 +72,11 @@ class DashboardServiceTests(unittest.TestCase):
             self.assertIn("sourceCatalog", payload)
             self.assertIn("sourceMix", payload)
             self.assertEqual(payload["sourceCatalog"]["totalSources"], 3)
-            self.assertTrue(any(item["channel"] == "x" for item in payload["sourceCatalog"]["channels"]))
+            self.assertTrue(any(item["sourceClass"] == "x_selected" for item in payload["sources"]))
+            self.assertEqual(
+                [item["sourceClass"] for item in payload["sourceCatalog"]["classes"]],
+                ["official", "media", "x_selected"],
+            )
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 
@@ -96,6 +100,7 @@ class DashboardServiceTests(unittest.TestCase):
             self.assertGreater(len(payload["signalCards"]), 0)
             self.assertGreater(len(payload["workflow"]), 0)
             self.assertIn("sourceMix", payload)
+            self.assertIn("classes", payload["sourceMix"])
             self.assertIn("auditNotes", payload)
             self.assertIsInstance(payload["auditNotes"], list)
             self.assertGreater(len(payload["reportSections"]), 0)
@@ -154,6 +159,7 @@ class DashboardServiceTests(unittest.TestCase):
             self.assertIn("仅采集", payload["reportSections"][0]["title"])
             self.assertEqual(len(payload["events"]), 0)
             self.assertGreater(len(payload["timeline"]), 0)
+            self.assertIn("classes", payload["sourceMix"])
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 
@@ -183,7 +189,7 @@ class DashboardServiceTests(unittest.TestCase):
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 
-    def test_source_mix_extracts_x_and_reddit_hotspots(self) -> None:
+    def test_source_mix_prioritizes_official_anchor_over_selected_x(self) -> None:
         runtime_dir = self._make_runtime_dir()
         try:
             service = DashboardService(self._build_config(runtime_dir))
@@ -193,45 +199,46 @@ class DashboardServiceTests(unittest.TestCase):
                 triggered_at="2026-03-22T07:00:00+08:00",
                 window=NewsWindow(start="2026-03-21T00:00:00Z", end="2026-03-22T00:00:00Z"),
                 scopes=["global_macro"],
-                sources=["ReutersMarketsX", "RedditEconomicsRatesMacro"],
+                sources=["FedPressAll", "ReutersMarketsX"],
                 raw_items=[
                     RawNewsItem(
                         id="1",
-                        source="ReutersMarketsX",
+                        source="FedPressAll",
                         source_type="rss",
-                        source_tier="tier1_media",
+                        source_tier="official",
                         language="en",
-                        title="Fed pricing shifts after CPI",
-                        summary="Rates reprice higher.",
-                        url="https://x.com/ReutersMarkets/status/1",
+                        title="Federal Reserve signals policy pause",
+                        summary="Official statement keeps rates restrictive.",
+                        url="https://www.federalreserve.gov/newsevents/pressreleases/monetary20260321a.htm",
                         published_at="2026-03-21T10:00:00Z",
                         collected_at="2026-03-21T10:05:00Z",
-                        tags=["x"],
-                        metadata={"source_confidence_level": "L2", "source_trust_score": 0.88, "entry_author": "ReutersMarkets"},
+                        tags=["official"],
+                        metadata={"source_confidence_level": "L1", "source_trust_score": 1.0},
                     ),
                     RawNewsItem(
                         id="2",
-                        source="RedditEconomicsRatesMacro",
+                        source="ReutersMarketsX",
                         source_type="rss",
-                        source_tier="social",
+                        source_tier="selected_x",
                         language="en",
-                        title="Fed thread with Reuters link",
-                        summary="Discussion with primary-source links.",
-                        url="https://old.reddit.com/r/Economics/comments/abc",
+                        title="Gold traders reassess yields after Fed statement",
+                        summary="Curated X headline follows the Fed release.",
+                        url="https://x.com/ReutersMarkets/status/1",
                         published_at="2026-03-21T11:00:00Z",
                         collected_at="2026-03-21T11:05:00Z",
-                        tags=["reddit"],
-                        metadata={"source_confidence_level": "L4", "source_trust_score": 0.38, "entry_author": "macro_mod"},
+                        tags=["x"],
+                        metadata={"source_confidence_level": "L3", "source_trust_score": 0.66, "entry_author": "ReutersMarkets"},
                     ),
                 ],
                 integrated_view=IntegratedView([], [], [], [], [], [], []),
             )
             source_mix = service._build_source_mix(result)
             self.assertEqual(source_mix["totalItems"], 2)
-            self.assertEqual(source_mix["channels"][0]["channel"], "x")
-            self.assertEqual(source_mix["channels"][0]["entries"][0]["name"], "ReutersMarkets")
-            self.assertEqual(source_mix["channels"][1]["channel"], "reddit")
-            self.assertEqual(source_mix["channels"][1]["entries"][0]["name"], "macro_mod")
+            self.assertEqual(source_mix["topSources"][0]["name"], "FedPressAll")
+            self.assertEqual(source_mix["topSources"][0]["sourceClass"], "official")
+            selected_x_group = next(item for item in source_mix["classes"] if item["sourceClass"] == "x_selected")
+            self.assertEqual(selected_x_group["entries"][0]["name"], "ReutersMarketsX")
+            self.assertEqual(selected_x_group["entries"][0]["sourceClassLabel"], "精选 X")
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 

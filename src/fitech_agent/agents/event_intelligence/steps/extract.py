@@ -15,9 +15,10 @@ def _tier_rank(tier: str) -> int:
         "official": 0,
         "tier1_media": 1,
         "tier2_media": 2,
-        "social": 3,
-        "unknown": 4,
-    }.get(tier, 5)
+        "selected_x": 3,
+        "social": 4,
+        "unknown": 5,
+    }.get(tier, 6)
 
 
 def _trust_score(item: RawNewsItem) -> float:

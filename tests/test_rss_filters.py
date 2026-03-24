@@ -82,15 +82,15 @@ class RSSSourceFilterTests(unittest.TestCase):
             <feed xmlns="http://www.w3.org/2005/Atom">
               <entry>
                 <title>Fed pricing thread</title>
-                <author><name>macro_mod</name></author>
-                <link href="https://old.reddit.com/r/Economics/comments/abc123/fed_pricing_thread/" />
+                <author><name>DeskCurator</name></author>
+                <link href="https://example.com/curated/fed-pricing-thread" />
                 <summary type="html">&lt;a href="https://www.reuters.com/markets/us/fed/"&gt;Reuters&lt;/a&gt;</summary>
                 <updated>2026-03-21T12:00:00Z</updated>
               </entry>
               <entry>
                 <title>Fed pricing thread</title>
-                <author><name>macro_mod</name></author>
-                <link href="https://old.reddit.com/r/Economics/comments/def456/fed_pricing_thread/" />
+                <author><name>DeskCurator</name></author>
+                <link href="https://example.com/curated/fed-pricing-thread-2" />
                 <summary type="html">&lt;a href="https://imgur.com/example"&gt;Imgur&lt;/a&gt;</summary>
                 <updated>2026-03-21T13:00:00Z</updated>
               </entry>
@@ -98,11 +98,11 @@ class RSSSourceFilterTests(unittest.TestCase):
             """
         )
         source = SourceDefinition(
-            name="RedditEconomicsMacroCurated",
+            name="CuratedMacroDigest",
             kind="rss",
-            endpoint="https://old.reddit.com/r/Economics/search.rss?q=fed",
+            endpoint="https://example.com/curated/fed.atom",
             language="en",
-            tier="social",
+            tier="tier2_media",
             metadata={
                 "title_allowlist_keywords": ["fed", "yield", "inflation"],
                 "summary_href_allowlist_domains": ["reuters.com", "bloomberg.com"],
@@ -116,7 +116,7 @@ class RSSSourceFilterTests(unittest.TestCase):
         items = RSSSourceAdapter(source).fetch(window, "2026-03-22T00:00:00Z")
 
         self.assertEqual(len(items), 1)
-        self.assertEqual(items[0].metadata["entry_author"], "macro_mod")
+        self.assertEqual(items[0].metadata["entry_author"], "DeskCurator")
         self.assertEqual(
             items[0].metadata["summary_links"],
             ["https://www.reuters.com/markets/us/fed/"],

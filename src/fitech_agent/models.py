@@ -4,7 +4,14 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
 Direction = Literal["bullish", "bearish", "neutral", "watch"]
-SourceTier = Literal["official", "tier1_media", "tier2_media", "social", "unknown"]
+SourceTier = Literal[
+    "official",
+    "tier1_media",
+    "tier2_media",
+    "selected_x",
+    "social",
+    "unknown",
+]
 RunMode = Literal["full_report", "collect_only"]
 ResearchScope = Literal[
     "equity",
