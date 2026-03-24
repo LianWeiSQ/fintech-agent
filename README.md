@@ -9,8 +9,8 @@ Fitech Agent is a Python-first, LangGraph-oriented multi-agent pipeline for:
 - generating an on-demand Chinese research brief with strategy-oriented views
 - storing the full research chain for replay and ex-post evaluation
 
-The repository is bootstrapped to run out of the box with a local sample feed while
-keeping live-source and model-routing interfaces pluggable.
+The repository keeps a single committed runtime config while leaving source and
+model-routing interfaces pluggable.
 
 ## Overview
 
@@ -20,7 +20,7 @@ keeping live-source and model-routing interfaces pluggable.
 
 - 5 core agents with layered `steps/`, `runtime.py`, `prompts.py`, and per-agent `skill.md`
 - LangGraph-ready orchestration with a 5-node top-level graph and a sequential fallback
-- LiteLLM wrapper with shared routing plus per-agent override hooks
+- Unified LLM routing with explicit backend selection and per-agent override hooks
 - SQLite-backed audit trail with both `agent_id` and `substage` traceability
 - Markdown report generation and optional PDF rendering through ReportLab
 - Historical replay and evaluation utilities for D0 / D1 / D5 review loops
@@ -31,13 +31,12 @@ keeping live-source and model-routing interfaces pluggable.
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install -e .[dev]
-python -m fitech_agent init-db --config config/example.toml
-python -m fitech_agent run --config config/example.toml
-python -m fitech_agent run --config config/example.toml --mode collect-only
+python -m fitech_agent init-db
+python -m fitech_agent run
+python -m fitech_agent run --mode collect-only
 ```
 
-The default config uses `examples/sample_news.json` so the pipeline can be exercised
-without network access or provider credentials.
+The default configuration lives at `config/config.toml`.
 
 ## Manual runs
 
@@ -83,11 +82,36 @@ powershell -ExecutionPolicy Bypass -File .\scripts\clawhub.ps1 --help
 
 ## Live data and models
 
-- Add RSS or file sources in `config/example.toml`.
-- Set `FITECH_AGENT_CONFIG` to point LangGraph CLI at a custom config.
+- The project now keeps a single committed runtime config at `config/config.toml`.
 - Keep provider credentials only in ignored local files or shell environment variables.
-- If you need model routing, put it in a local override such as `config/local.toml`,
-  which is ignored by Git.
+- The unified model interface lives under `[model_route]` with these main fields:
+  `provider`, `backend`, `model`, `base_url`, `api_key_env`, `reasoning_effort`.
+- `backend` currently supports:
+  `auto`, `openai_responses`, `litellm`
+- Future model backends should plug into this same `[model_route]` contract rather than
+  introducing more `demo` / `example` / `local` config variants.
+- To call a third-party OpenAI-compatible Responses gateway from the agent backend:
+
+```toml
+[model_route]
+provider = "custom"
+backend = "openai_responses"
+model = "gpt-5.4"
+base_url = "https://codex-api.packycode.com/v1"
+reasoning_effort = "xhigh"
+max_output_tokens = 900
+api_key_env = "OPENAI_API_KEY"
+```
+
+- Quick connectivity smoke test:
+
+```bash
+uv run python scripts/test_codex_connection.py --expect MODEL_OK
+```
+
+- If you later switch to another provider or gateway, keep using the same
+  `[model_route]` fields and change only `provider` / `backend` / `model` /
+  `base_url` / `api_key_env`.
 - The built-in trust policy recognizes these V1 trusted sources:
   `Reuters`, `Bloomberg`, `???`, `?????`, `??????`,
   `?????`, `?????`, `OPEC`, `Fed`, `CME`.
@@ -102,7 +126,7 @@ The graph entrypoint is declared in `langgraph.json`.
 
 ## Project layout
 
-- `config/example.toml`: committed, credential-free example configuration
+- `config/config.toml`: single committed runtime configuration
 - `examples/`: sample news and evaluation fixtures
 - `spec.md`: product and implementation specification
 - `src/fitech_agent/`: pipeline package

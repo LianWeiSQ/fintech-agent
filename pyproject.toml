@@ -12,6 +12,7 @@ dependencies = [
   "langgraph>=0.2.0",
   "litellm>=1.63.0",
   "langsmith>=0.3.15",
+  "openai>=2.29.0",
   "reportlab>=4.0.0",
 ]
 
@@ -30,4 +31,3 @@ where = ["src"]
 [tool.setuptools.package-data]
 "fitech_agent.web" = ["*.html", "*.css", "*.js"]
 "fitech_agent" = ["agents/*/skill.md", "agents/*/*/*.md"]
-

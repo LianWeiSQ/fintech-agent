@@ -51,25 +51,30 @@ class AuditSettings:
 @dataclass(slots=True)
 class ModelRoute:
     provider: str = ""
+    backend: str = "auto"
     model: str = ""
     temperature: float = 0.1
     max_output_tokens: int = 900
     base_url: str = ""
     api_key_env: str = ""
+    reasoning_effort: str = ""
 
 
 @dataclass(slots=True)
 class AgentRouteOverride:
     provider: str | None = None
+    backend: str | None = None
     model: str | None = None
     temperature: float | None = None
     max_output_tokens: int | None = None
     base_url: str | None = None
     api_key_env: str | None = None
+    reasoning_effort: str | None = None
 
     def apply_to(self, base: ModelRoute) -> ModelRoute:
         return ModelRoute(
             provider=self.provider if self.provider not in {None, ""} else base.provider,
+            backend=self.backend if self.backend not in {None, ""} else base.backend,
             model=self.model if self.model not in {None, ""} else base.model,
             temperature=(
                 self.temperature if self.temperature is not None else base.temperature
@@ -84,6 +89,11 @@ class AgentRouteOverride:
                 self.api_key_env
                 if self.api_key_env not in {None, ""}
                 else base.api_key_env
+            ),
+            reasoning_effort=(
+                self.reasoning_effort
+                if self.reasoning_effort not in {None, ""}
+                else base.reasoning_effort
             ),
         )
 
@@ -141,7 +151,7 @@ def load_dotenv(path: str | Path = ".env") -> Path | None:
 
 
 def default_config_path() -> Path:
-    return Path(os.environ.get("FITECH_AGENT_CONFIG", "config/example.toml"))
+    return Path(os.environ.get("FITECH_AGENT_CONFIG", "config/config.toml"))
 
 
 def load_config(path: str | Path | None = None) -> AppConfig:
