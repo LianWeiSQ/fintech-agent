@@ -93,6 +93,7 @@ tier = "official"
 enabled = true
 tags = ["official", "china", "policy", "rates", "usd", "precious_metals"]
 metadata.link_allowlist_domains = ["pbc.gov.cn"]
+metadata.link_base_url = "https://www.pbc.gov.cn"
 metadata.title_allowlist_keywords = ["货币政策", "流动性", "利率", "逆回购", "mlf", "lpr", "人民币", "汇率", "外汇", "债券", "国债", "经济", "通胀", "cpi", "ppi", "政策", "再贷款", "黄金", "白银"]
 
 [[sources]]
@@ -104,6 +105,9 @@ tier = "official"
 enabled = true
 tags = ["official", "china", "macro", "data", "precious_metals"]
 metadata.link_allowlist_domains = ["stats.gov.cn"]
+metadata.timeout_seconds = 35
+metadata.retry_attempts = 3
+metadata.retry_backoff_seconds = 1.5
 metadata.title_allowlist_keywords = ["gdp", "cpi", "ppi", "pmi", "工业", "制造业", "消费", "社零", "固定资产", "出口", "进口", "就业", "房地产", "价格"]
 
 [[sources]]
@@ -115,6 +119,9 @@ tier = "official"
 enabled = true
 tags = ["official", "china", "macro", "data", "precious_metals"]
 metadata.link_allowlist_domains = ["stats.gov.cn"]
+metadata.timeout_seconds = 35
+metadata.retry_attempts = 3
+metadata.retry_backoff_seconds = 1.5
 metadata.title_allowlist_keywords = ["gdp", "cpi", "ppi", "pmi", "工业", "制造业", "消费", "社零", "固定资产", "出口", "进口", "就业", "房地产", "价格"]
 
 [[sources]]
@@ -132,36 +139,36 @@ metadata.title_allowlist_keywords = ["gold", "silver", "treasury", "yield", "rat
 [[sources]]
 name = "ReutersMarkets"
 kind = "rss"
-endpoint = "https://rsshub.app/reuters/markets"
+endpoint = "https://news.google.com/rss/search?q=site%3Areuters.com%2Fmarkets%20gold%20OR%20silver%20OR%20fed%20OR%20treasury%20OR%20yield%20OR%20dollar%20OR%20china%20OR%20yuan%20OR%20pboc%20OR%20comex&hl=en-US&gl=US&ceid=US:en"
 language = "en"
 tier = "tier1_media"
 enabled = true
 tags = ["wire", "macro", "commodities", "precious_metals", "usd", "ust", "china"]
-metadata.link_allowlist_domains = ["reuters.com"]
+metadata.publisher_allowlist = ["Reuters"]
 metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "oil", "gold", "silver", "stocks", "shares", "crude", "inflation", "tariff", "opec", "sanction"]
 metadata.title_blocklist_keywords = ["podcast", "pictures", "lifestyle", "sports"]
 
 [[sources]]
 name = "ReutersBusinessFinance"
 kind = "rss"
-endpoint = "https://rsshub.app/reuters/business/finance"
+endpoint = "https://news.google.com/rss/search?q=site%3Areuters.com%2Fbusiness%2Ffinance%20gold%20OR%20silver%20OR%20bank%20OR%20fed%20OR%20treasury%20OR%20dollar%20OR%20inflation%20OR%20china%20OR%20policy&hl=en-US&gl=US&ceid=US:en"
 language = "en"
 tier = "tier1_media"
 enabled = true
 tags = ["wire", "macro", "finance", "precious_metals", "usd", "ust", "china"]
-metadata.link_allowlist_domains = ["reuters.com"]
+metadata.publisher_allowlist = ["Reuters"]
 metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "bank", "liquidity", "inflation", "credit", "bond", "policy", "gold", "silver"]
 metadata.title_blocklist_keywords = ["podcast", "lifestyle", "sports"]
 
 [[sources]]
 name = "ReutersWorldChina"
 kind = "rss"
-endpoint = "https://rsshub.app/reuters/world/china"
+endpoint = "https://news.google.com/rss/search?q=site%3Areuters.com%2Fworld%2Fchina%20china%20OR%20pboc%20OR%20yuan%20OR%20stimulus%20OR%20property%20OR%20exports%20OR%20imports%20OR%20trade%20OR%20gold%20OR%20silver&hl=en-US&gl=US&ceid=US:en"
 language = "en"
 tier = "tier1_media"
 enabled = true
 tags = ["wire", "china", "policy", "macro", "precious_metals"]
-metadata.link_allowlist_domains = ["reuters.com"]
+metadata.publisher_allowlist = ["Reuters"]
 metadata.title_allowlist_keywords = ["china", "yuan", "pboc", "stimulus", "property", "exports", "imports", "tariff", "trade", "cpi", "ppi", "policy", "gold", "silver"]
 
 # L3: selected X
@@ -171,7 +178,7 @@ kind = "rss"
 endpoint = "https://rsshub.app/twitter/user/ReutersMarkets"
 language = "en"
 tier = "selected_x"
-enabled = true
+enabled = false
 tags = ["selected_x", "x", "macro", "commodities", "precious_metals", "usd", "ust"]
 metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "gold", "silver", "inflation", "comex"]
 metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
@@ -182,7 +189,7 @@ kind = "rss"
 endpoint = "https://rsshub.app/twitter/user/markets"
 language = "en"
 tier = "selected_x"
-enabled = true
+enabled = false
 tags = ["selected_x", "x", "macro", "commodities", "precious_metals", "usd", "ust"]
 metadata.title_allowlist_keywords = ["china", "yuan", "fed", "pboc", "yield", "treasury", "dollar", "gold", "silver", "inflation", "opec"]
 metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
@@ -193,7 +200,7 @@ kind = "rss"
 endpoint = "https://rsshub.app/twitter/user/NickTimiraos"
 language = "en"
 tier = "selected_x"
-enabled = true
+enabled = false
 tags = ["selected_x", "x", "macro", "usd", "ust", "rates", "precious_metals"]
 metadata.title_allowlist_keywords = ["fed", "fomc", "powell", "treasury", "yield", "rate", "inflation", "labor", "dollar", "gold", "silver"]
 metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]
@@ -204,7 +211,7 @@ kind = "rss"
 endpoint = "https://rsshub.app/twitter/user/JavierBlas"
 language = "en"
 tier = "selected_x"
-enabled = true
+enabled = false
 tags = ["selected_x", "x", "commodities", "precious_metals", "macro"]
 metadata.title_allowlist_keywords = ["gold", "silver", "commodity", "commodities", "fed", "dollar", "yield", "opec", "sanction"]
 metadata.title_blocklist_keywords = ["podcast", "video", "watch", "newsletter"]

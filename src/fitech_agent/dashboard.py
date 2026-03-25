@@ -97,6 +97,19 @@ def _is_same_or_newer(candidate: str, current: str) -> bool:
     return candidate_dt >= current_dt
 
 
+def _source_failure_map(reasons: list[str]) -> dict[str, str]:
+    failures: dict[str, str] = {}
+    for reason in reasons:
+        if not reason.startswith("source_failed:"):
+            continue
+        payload = reason.removeprefix("source_failed:")
+        source_name, _, detail = payload.partition(":")
+        source_name = compact_whitespace(source_name)
+        if source_name:
+            failures[source_name] = compact_whitespace(detail) or "fetch_failed"
+    return failures
+
+
 class DashboardService:
     def __init__(self, config: AppConfig) -> None:
         self.config = config
@@ -228,6 +241,8 @@ class DashboardService:
         latest_seen: str = "",
         authors: list[str] | None = None,
         active: bool = False,
+        health_status: str = "idle",
+        health_note: str = "",
     ) -> dict[str, Any] | None:
         source_class = self._source_class_from_definition(source)
         if source_class is None:
@@ -255,6 +270,8 @@ class DashboardService:
             "latestSeen": latest_seen,
             "authors": authors or [],
             "active": active,
+            "healthStatus": health_status,
+            "healthNote": health_note,
         }
 
     def _sort_source_entries(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -268,6 +285,19 @@ class DashboardService:
                 str(entry.get("name", "")),
             ),
         )
+
+    def _merge_source_entries(
+        self,
+        *entry_groups: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, dict[str, Any]] = {}
+        for group in entry_groups:
+            for entry in group:
+                name = str(entry.get("name", ""))
+                if not name:
+                    continue
+                merged[name] = {**merged.get(name, {}), **entry}
+        return self._sort_source_entries(list(merged.values()))
 
     def _build_source_catalog(self) -> dict[str, Any]:
         level_buckets = {level: [] for level in LEVEL_ORDER}
@@ -351,11 +381,17 @@ class DashboardService:
 
     def _build_source_mix(self, result: ResearchRunResult) -> dict[str, Any]:
         selected_sources = [self.source_lookup[name] for name in result.sources if name in self.source_lookup] or list(self.source_lookup.values())
+        source_failures = _source_failure_map(result.degraded_reasons)
         visible_selected_sources: list[tuple[SourceDefinition, dict[str, Any]]] = []
         selected_by_level = {level: [] for level in LEVEL_ORDER}
         selected_by_class = {source_class: [] for source_class in SOURCE_CLASS_ORDER}
         for source in self._sorted_sources(selected_sources):
-            entry = self._source_entry_from_definition(source)
+            failure_note = source_failures.get(source.name, "")
+            entry = self._source_entry_from_definition(
+                source,
+                health_status="failed" if failure_note else "idle",
+                health_note=failure_note,
+            )
             if entry is None:
                 continue
             visible_selected_sources.append((source, entry))
@@ -379,7 +415,12 @@ class DashboardService:
             class_meta = SOURCE_CLASS_META[source_class]
             trust_score = _format_percent(_safe_float(item.metadata.get("source_trust_score"), source.trust_score if source else 0.0))
             author = compact_whitespace(str(item.metadata.get("entry_author", "")))
-            seeded_record = self._source_entry_from_definition(source, active=True) if source is not None else None
+            seeded_record = self._source_entry_from_definition(
+                source,
+                active=True,
+                health_status="active",
+                health_note="",
+            ) if source is not None else None
             record = source_records.setdefault(
                 item.source,
                 seeded_record
@@ -404,6 +445,8 @@ class DashboardService:
                     "latestSeen": "",
                     "authors": [],
                     "active": True,
+                    "healthStatus": "active",
+                    "healthNote": "",
                 },
             )
             record["confidenceLevel"] = level
@@ -413,6 +456,9 @@ class DashboardService:
             record["sourceClassDescription"] = class_meta["description"]
             record["credibilityNote"] = f"{level_meta['label']} / {class_meta['label']}"
             record["itemCount"] = int(record.get("itemCount", 0)) + 1
+            record["active"] = True
+            record["healthStatus"] = "active"
+            record["healthNote"] = ""
             if _is_same_or_newer(item.published_at, str(record.get("latestSeen", ""))):
                 record["latestSeen"] = item.published_at
                 record["latestTitle"] = item.title
@@ -426,7 +472,7 @@ class DashboardService:
         for level in LEVEL_ORDER:
             active_entries = self._sort_source_entries([source_records[name] for name in level_source_sets[level]])
             configured_entries = [entry for source, entry in visible_selected_sources if entry["confidenceLevel"] == level]
-            source_entries = active_entries or self._sort_source_entries(configured_entries)
+            source_entries = self._merge_source_entries(configured_entries, active_entries)
             levels.append(
                 {
                     "level": level,
@@ -444,7 +490,7 @@ class DashboardService:
         for source_class in SOURCE_CLASS_ORDER:
             active_entries = self._sort_source_entries([source_records[name] for name in class_source_sets[source_class]])
             configured_entries = [entry for source, entry in visible_selected_sources if entry["sourceClass"] == source_class]
-            class_entries = active_entries or self._sort_source_entries(configured_entries)
+            class_entries = self._merge_source_entries(configured_entries, active_entries)
             classes.append(
                 {
                     "sourceClass": source_class,
@@ -457,7 +503,10 @@ class DashboardService:
                     "mode": "active" if class_item_counts[source_class] else "configured",
                 }
             )
-        top_sources = self._sort_source_entries(list(source_records.values()))[:12] or self._build_bootstrap_source_mix()["topSources"]
+        top_sources = self._merge_source_entries(
+            [entry for _, entry in visible_selected_sources],
+            list(source_records.values()),
+        )[:12] or self._build_bootstrap_source_mix()["topSources"]
         return {
             "mode": "active",
             "totalItems": sum(class_item_counts.values()),
@@ -511,7 +560,7 @@ class DashboardService:
     def _build_market_tape(self, result: ResearchRunResult) -> list[str]:
         tape = list(result.integrated_view.watchlist)
         tape.extend(item.title for item in result.events[:3])
-        tape.extend(result.degraded_reasons)
+        tape.extend(result.integrated_view.cross_asset_themes[:3])
         return list(dict.fromkeys(filter(None, tape)))[:10]
 
     def _build_chat_context(self, result: ResearchRunResult, intent: str, source_mix: dict[str, Any]) -> dict[str, Any]:

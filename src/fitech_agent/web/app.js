@@ -319,7 +319,7 @@ function renderOverview() {
 
   renderOverviewBoards();
   renderTagCollection(els.overviewWatchlist, state.latestRun?.watchlist || [], "运行后这里会出现重点观察变量。");
-  renderTape(els.marketTape, state.latestRun?.marketTape || [], "运行后这里会汇总事件标题、watchlist 和降级原因。");
+  renderTape(els.marketTape, state.latestRun?.marketTape || [], "运行后这里会汇总事件标题、watchlist 和跨资产主线。");
   renderReportPreview();
   renderOverviewSourceSummary();
 }
@@ -603,6 +603,23 @@ function renderSourceMixCards(entries) {
     .join("");
 }
 
+function getSourceStatusLabel(entry) {
+  if (entry.healthStatus === "failed") {
+    return "抓取失败";
+  }
+  if (entry.active) {
+    return "命中来源";
+  }
+  return "当前无命中";
+}
+
+function getSourceHeadline(entry) {
+  if (entry.healthStatus === "failed") {
+    return entry.healthNote || "本轮抓取失败，请检查来源配置或网络可达性。";
+  }
+  return entry.latestTitle || "当前没有命中消息，保留为配置来源。";
+}
+
 function renderSourceLevelBoards(entries) {
   const grouped = groupSourcesByLevel(entries);
   const sections = LEVEL_ORDER
@@ -615,8 +632,8 @@ function renderSourceLevelBoards(entries) {
       const meta = findLevelMeta(level);
       const rows = items
         .map((entry) => {
-          const latest = entry.latestTitle || "当前没有命中消息，保留为配置来源。";
-          const details = entry.active ? `${entry.sourceClassLabel} · ${entry.itemCount} 条 · Trust ${entry.trustScore}%` : `${entry.sourceClassLabel} · 配置来源 · Trust ${entry.trustScore}%`;
+          const latest = getSourceHeadline(entry);
+          const details = `${entry.sourceClassLabel} · ${getSourceStatusLabel(entry)} · Trust ${entry.trustScore}%`;
           return `
             <article class="stack-item">
               <div class="stack-head">
@@ -658,14 +675,14 @@ function renderSourceClassBoards() {
     .map((group) => {
       const entries = (group.entries || [])
         .map((entry) => {
-          const latest = entry.latestTitle || "当前窗口暂无命中内容，保留为配置来源。";
+          const latest = getSourceHeadline(entry);
           return `
             <article class="stack-item">
               <div class="stack-head">
                 <strong>${escapeHtml(entry.name || entry.label || "来源")}</strong>
                 <span class="mini-pill">${escapeHtml(entry.levelLabel || entry.confidenceLabel || group.label)}</span>
               </div>
-              <div class="stack-meta">${escapeHtml(`Trust ${entry.trustScore || 0}% · ${entry.itemCount || 0} 条`)}</div>
+              <div class="stack-meta">${escapeHtml(`Trust ${entry.trustScore || 0}% · ${getSourceStatusLabel(entry)} · ${entry.itemCount || 0} 条`)}</div>
               <p>${escapeHtml(latest)}</p>
             </article>
           `;
@@ -698,8 +715,8 @@ function renderSourceCatalog(entries) {
 
   els.sourceCatalog.innerHTML = entries
     .map((entry) => {
-      const summary = entry.active ? `${entry.levelLabel} · ${entry.sourceClassLabel} · ${entry.itemCount} 条消息` : `${entry.levelLabel} · ${entry.sourceClassLabel} · 配置来源`;
-      const detail = entry.latestTitle || entry.tags.join(" / ") || "暂无额外说明";
+      const summary = `${entry.levelLabel} · ${entry.sourceClassLabel} · ${getSourceStatusLabel(entry)}`;
+      const detail = getSourceHeadline(entry) || entry.tags.join(" / ") || "暂无额外说明";
       return renderStackItem(entry.name, detail, summary);
     })
     .join("");
@@ -735,7 +752,7 @@ function renderAuditPanel() {
   const notes = [];
 
   if (!state.latestRun) {
-    els.auditPanel.innerHTML = renderEmptyState("运行后这里会展示 auditNotes 和 degradedReasons。");
+    els.auditPanel.innerHTML = renderEmptyState("运行后这里会展示审计说明、降级原因和来源抓取异常。");
     return;
   }
 
@@ -1275,6 +1292,7 @@ function buildSourceUniverse() {
 
 function normalizeSource(source, fallbackLevel, fallbackLabel, fallbackDescription) {
   const level = source.confidenceLevel || fallbackLevel || "L3";
+  const active = Boolean(source.active) || Number(source.itemCount || 0) > 0;
   return {
     name: source.name,
     label: source.label || source.name,
@@ -1293,7 +1311,9 @@ function normalizeSource(source, fallbackLevel, fallbackLabel, fallbackDescripti
     language: source.language || "",
     kind: source.kind || "",
     tier: source.tier || "",
-    active: Boolean(source.active) || Number(source.itemCount || 0) > 0,
+    active,
+    healthStatus: source.healthStatus || (active ? "active" : "idle"),
+    healthNote: source.healthNote || "",
   };
 }
 

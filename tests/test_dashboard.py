@@ -242,6 +242,66 @@ class DashboardServiceTests(unittest.TestCase):
         finally:
             shutil.rmtree(runtime_dir, ignore_errors=True)
 
+    def test_market_tape_excludes_source_failure_strings(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            service = DashboardService(self._build_config(runtime_dir))
+            result = ResearchRunResult(
+                run_id=2,
+                mode="collect_only",
+                triggered_at="2026-03-22T07:00:00+08:00",
+                window=NewsWindow(start="2026-03-21T00:00:00Z", end="2026-03-22T00:00:00Z"),
+                scopes=["global_macro"],
+                sources=["FedPressAll"],
+                degraded_reasons=["source_failed:FedPressAll:timed out", "no_news_collected"],
+                integrated_view=IntegratedView(
+                    equity_view=[],
+                    commodities_view=[],
+                    precious_metals_view=[],
+                    crude_oil_view=[],
+                    cross_asset_themes=["Rates stay restrictive"],
+                    watchlist=["Watch real yields"],
+                    risk_scenarios=[],
+                ),
+            )
+
+            tape = service._build_market_tape(result)
+
+            self.assertIn("Watch real yields", tape)
+            self.assertIn("Rates stay restrictive", tape)
+            self.assertFalse(any(item.startswith("source_failed:") for item in tape))
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
+    def test_source_mix_surfaces_failed_sources_without_putting_them_in_market_tape(self) -> None:
+        runtime_dir = self._make_runtime_dir()
+        try:
+            service = DashboardService(self._build_config(runtime_dir))
+            result = ResearchRunResult(
+                run_id=3,
+                mode="collect_only",
+                triggered_at="2026-03-22T07:00:00+08:00",
+                window=NewsWindow(start="2026-03-21T00:00:00Z", end="2026-03-22T00:00:00Z"),
+                scopes=["global_macro"],
+                sources=["FedPressAll", "ReutersMarketsX"],
+                degraded_reasons=["source_failed:ReutersMarketsX:HTTP Error 404: Not Found"],
+                integrated_view=IntegratedView([], [], [], [], [], [], []),
+            )
+
+            source_mix = service._build_source_mix(result)
+            selected_x_entry = next(
+                entry
+                for group in source_mix["classes"]
+                if group["sourceClass"] == "x_selected"
+                for entry in group["entries"]
+                if entry["name"] == "ReutersMarketsX"
+            )
+
+            self.assertEqual(selected_x_entry["healthStatus"], "failed")
+            self.assertIn("HTTP Error 404", selected_x_entry["healthNote"])
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+
 
 if __name__ == "__main__":
     unittest.main()
